@@ -2,7 +2,7 @@
 
 I built this tool while working in retail to streamline a time-consuming daily task. Administrators and managers would spend 15-30 minutes each day manually determining breaks from a daily schedule spreadsheet, and it wasn't uncommon for there to be issus with compliance with state labor law. This tool takes the exported daily schedule from the UKG Retail Schedule Planner, calculates legally compliant meal periods and rest breaks for every employee (including split shifts), and writes them back into the spreadsheet.
 
-I originally wrote it as a quick macro for Excel. It evolved into a basic web app, and as it has grown, I have recently refactored it to incorporate MVC, Facade, and Observer patterns, with 94 unit tests, a Vite build pipeline, and automated deployment through GitHub Actions. The software had rapidly inflated and I need to encapsulate functionality to reduce bugs when adding features or changing functionality.
+I originally wrote it as a quick macro for Excel. It evolved into a basic web app, and as it has grown, I have recently refactored it to incorporate MVC, Facade, and Observer patterns, with 112 unit tests, a Vite build pipeline, and automated deployment through GitHub Actions. The software had rapidly inflated and I need to encapsulate functionality to reduce bugs when adding features or changing functionality.
 
 **Live Demo:** [kadencampb.github.io/break-schedule-tool](https://kadencampb.github.io/break-schedule-tool)
 
@@ -461,7 +461,41 @@ This tool is currently maintained outside corporate IT infrastructure. Enterpris
 
 ## i. Significant Changes and Remediation
 
-### v2.0 (current)
+### v2.1 — CA DLSE compliance overhaul (current)
+
+Updated core scheduling logic to match the strict California DLSE rest break formula and corrected break placement for shifts that include a mid-shift meal gap.
+
+**Rest break count formula replaced.** The previous implementation used ad-hoc thresholds (>= 300 min = 2 breaks, etc.) that did not match the DLSE rule. The correct formula is one break per 4-hour work period or major fraction thereof, where "major fraction" means strictly more than 2 hours:
+
+```js
+// Before (incorrect)
+if (hoursWorked >= 300) return 2;
+
+// After (strict DLSE)
+restBreaksRequired() {
+    const total = this.totalWorkMinutes;
+    if (total < 210) return 0;
+    return Math.floor(total / 240) + (total % 240 > 120 ? 1 : 0);
+}
+```
+
+A 6-hour shift now correctly gets 1 rest break (not 2). A 6h+1min shift gets 2. An 11-hour shift gets 3. The `scheduledMealMinutes` parameter was removed — rest breaks are paid time and the count does not deduct for meals.
+
+**Break placement corrected for mid-shift meal gaps.** The previous code placed rest breaks at fixed wall-clock offsets from shift start (`overallStart + 120`). This produced wrong times when the shift had a meal period gap, because the offset treated the gap as worked time.
+
+New method `workedTimeToClockTime(targetWorkedMin)` walks the employee's segments and skips unpaid gaps. Break n is placed at the 2-hour midpoint of the nth 4-hour worked period in net worked time:
+
+```js
+// Employee 10AM-2:45PM + 3:15PM-6:30PM (30-min meal gap)
+// Break 2 ideal: 360 net worked min
+// After 285 min (end of seg 1), need 75 more → 3:15PM + 75 min = 4:30PM ✓
+```
+
+18 new unit tests added (112 total), covering the 6h boundary, `workedTimeToClockTime` for single and multi-segment shifts, and end-to-end break placement assertions for the meal-gap scenario.
+
+---
+
+### v2.0
 
 Full architectural rebuild. The original codebase was ~2,500 lines split across two files with no tests, no build step, and several logic bugs that produced incorrect break schedules.
 
@@ -472,7 +506,7 @@ Full architectural rebuild. The original codebase was ~2,500 lines split across 
 | Architecture | 2,500 lines across 2 files | MVC: `models/`, `views/`, `controllers/`, `core/` |
 | Dependencies | CDN-loaded Bootstrap, Font Awesome, xlsx | npm packages bundled by Vite, no runtime CDN calls |
 | Build pipeline | None, raw files served directly | Vite with tree-shaking, chunking, and `dist/`-only deployment |
-| Testing | None | 94 Vitest unit tests |
+| Testing | None | 112 Vitest unit tests |
 | Static analysis | None | ESLint + `eslint-plugin-security` |
 | CI/CD | Deploy on push with no gates | Test -> lint -> build -> deploy (any failure blocks deployment) |
 | Security | No CSP, CDN scripts, global namespace | CSP meta tag, `connect-src 'none'`, ES modules |
@@ -540,15 +574,32 @@ isValidBreakWindow(time, duration) {
 
 ## California Labor Law Reference
 
-| Hours Worked | Meal Periods | Rest Breaks |
-|---|---|---|
-| < 3.5h (< 210 min) | 0 | 0 |
-| >= 3.5h, < 5h | 0 | 1 |
-| >= 5h (>= 300 min) | 1 | 2 |
-| >= 10h (>= 600 min) | 2 | 3 |
-| Split shift with gap >= 30 min | Gap satisfies first meal | Based on `totalWorkMinutes` sum |
+### Meal periods
 
-Thresholds match strict California IWC Wage Order values. Exactly 5 hours triggers the first meal period. Exactly 10 hours triggers the second.
+| Total hours worked | Meal periods required |
+|---|---|
+| < 5h (< 300 min) | 0 |
+| >= 5h (>= 300 min) | 1 |
+| >= 10h (>= 600 min) | 2 |
+| Split shift — gap >= 30 min | Gap satisfies first meal; same totals apply |
+
+### Rest breaks
+
+One paid 10-minute rest break per 4-hour work period or **major fraction thereof** (CA DLSE: strictly more than 2 hours). No break if total shift is under 3.5 hours.
+
+Formula: `floor(totalMinutes / 240) + (totalMinutes % 240 > 120 ? 1 : 0)`
+
+| Total shift minutes | Breaks |
+|---|---|
+| < 210 (< 3.5h) | 0 |
+| 210-360 (3.5h to 6h) | 1 |
+| 361-480 (6h+1min to 8h) | 2 |
+| 481-600 (8h+1min to 10h) | 2 |
+| 601-720 (10h+1min to 12h) | 3 |
+
+Note: a 6-hour shift gets **1** rest break (remainder = 120 min, which is NOT strictly greater than 120). A 6h+1min shift gets 2. Rest breaks are paid and count as worked time; no deduction is applied when calculating the count.
+
+Break placement uses net worked time, not wall-clock offsets. Each break is placed at the 2-hour mark of its 4-hour worked period, which correctly accounts for meal gaps mid-shift.
 
 ---
 
