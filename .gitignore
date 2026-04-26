@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite cache
+.vite/
+
+# Old bundled files (replaced by npm packages)
+xlsx.bundle.js
+xlsx.bundle.js.map
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Claude Code session data
+.claude/
+
+# Internal documents (not for public repos)
+*.pdf
+
+# Legacy data file (superseded by src/core/constants.js)
+coverage-groups.json

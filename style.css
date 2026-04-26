@@ -1,0 +1,425 @@
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.container {
+    max-width: 900px;
+    margin-top: 50px;
+    margin-bottom: 50px;
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+}
+
+.btn-lg {
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(45, 55, 72, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    border: none;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(56, 161, 105, 0.4);
+}
+
+.badge {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+h5 {
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.text-muted {
+    color: #718096 !important;
+}
+
+footer {
+    color: white;
+    font-size: 0.9rem;
+}
+
+/* Button Styling */
+.group-action-btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    transition: all 0.2s ease;
+    border-width: 2px;
+}
+
+.group-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+    border: none;
+    color: #ffffff;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+    color: #ffffff;
+}
+
+.btn-outline-info {
+    border-color: #4299e1;
+    color: #4299e1;
+}
+
+.btn-outline-info:hover {
+    background-color: #4299e1;
+    color: white;
+}
+
+.btn-outline-warning {
+    border-color: #ed8936;
+    color: #ed8936;
+}
+
+.btn-outline-warning:hover {
+    background-color: #ed8936;
+    color: white;
+}
+
+.btn-outline-danger {
+    border-color: #e53e3e;
+    color: #e53e3e;
+}
+
+.btn-outline-danger:hover {
+    background-color: #e53e3e;
+    color: white;
+}
+
+.badge-warning {
+    background: #ed8936;
+    color: #ffffff;
+}
+
+/* Group Cards */
+#groupsContainer .card {
+    border: 1px solid #e5e7eb;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+#groupsContainer .card:hover {
+    border-color: #4a5568;
+    box-shadow: 0 2px 10px rgba(74, 85, 104, 0.2);
+}
+
+#groupsContainer .card-body {
+    background-color: #ffffff;
+    border-radius: 8px;
+}
+
+#groupsContainer .card-body h6 {
+    color: #2d3748;
+}
+
+#groupsContainer .card-body .small {
+    color: #718096 !important;
+}
+
+/* Group action buttons - consistent solid style */
+.group-action-btn,
+.edit-group-btn,
+.delete-group-btn {
+    border-radius: 12px !important;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    transition: all 0.2s ease;
+    border: none !important;
+}
+
+#exportGroupsBtn,
+#importGroupsBtn {
+    background: #4299e1;
+    color: white;
+}
+
+#exportGroupsBtn:hover,
+#importGroupsBtn:hover {
+    background: #3182ce;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.3);
+}
+
+#resetGroupsBtn {
+    background: #ed8936;
+    color: white;
+}
+
+#resetGroupsBtn:hover {
+    background: #dd6b20;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(237, 137, 54, 0.3);
+}
+
+.edit-group-btn {
+    background: #4299e1;
+    color: white;
+}
+
+.edit-group-btn:hover {
+    background: #3182ce;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.3);
+}
+
+.delete-group-btn {
+    background: #e53e3e;
+    color: white;
+}
+
+.delete-group-btn:hover {
+    background: #c53030;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
+}
+
+/* Settings Section Styling */
+.settings-header {
+    padding: 1rem 0;
+}
+
+.settings-header i.fa-cog {
+    animation: spin-slow 20s linear infinite;
+}
+
+@keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.settings-card {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.settings-card:hover {
+    border-color: #4a5568;
+    box-shadow: 0 5px 20px rgba(74, 85, 104, 0.2);
+}
+
+.settings-card-header {
+    background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%) !important;
+    border: none;
+    padding: 1rem 1.25rem;
+}
+
+.settings-card-header .btn-link {
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.settings-card-header .btn-link:hover {
+    opacity: 0.8;
+}
+
+.text-warning {
+    color: #4a5568 !important;
+}
+
+.settings-card-header i.fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.settings-card-header .btn-link[aria-expanded="true"] i.fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Modal Department Accordion Styling */
+#departmentAccordion .card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+#departmentAccordion .card-header {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    border-radius: 8px 8px 0 0;
+}
+
+#departmentAccordion .btn-link {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+#departmentAccordion .btn-link:hover {
+    color: #e2e8f0;
+}
+
+#departmentAccordion .card-body {
+    background-color: #ffffff;
+}
+
+/* Fix border radius for collapsed accordion items */
+#departmentAccordion .collapse:not(.show) + .card-header {
+    border-radius: 8px;
+}
+
+/* Selected departments badges */
+#selectedDepartments .badge {
+    margin: 0.25rem;
+}
+
+/* Range Slider Styling */
+.slider-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1.5rem 0;
+}
+
+.slider-wrapper {
+    width: 60%;
+    position: relative;
+}
+
+.form-control-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #4a5568 0%, #cbd5e0 0%);
+    outline: none;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+    margin: 0.5rem 0;
+    display: block;
+}
+
+.form-control-range:hover {
+    opacity: 1;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.form-control-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4a5568;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.form-control-range::-webkit-slider-thumb:hover {
+    background: #2d3748;
+    transform: scale(1.1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.form-control-range::-webkit-slider-thumb:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox */
+.form-control-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4a5568;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.form-control-range::-moz-range-thumb:hover {
+    background: #2d3748;
+    transform: scale(1.1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.form-control-range::-moz-range-thumb:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.form-control-range::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #cbd5e0;
+}
+
+/* IE/Edge */
+.form-control-range::-ms-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4a5568;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.form-control-range::-ms-track {
+    height: 6px;
+    border-radius: 3px;
+    background: transparent;
+    border-color: transparent;
+    color: transparent;
+}
+
+.form-control-range::-ms-fill-lower {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+.form-control-range::-ms-fill-upper {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+/* Slider tick marks and labels - hidden for cleaner look */
+.slider-ticks {
+    display: none;
+}

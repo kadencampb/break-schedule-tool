@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Content Security Policy: restrict sources to self only (no CDN, no inline scripts) -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; script-src 'self'; connect-src 'none';">
+    <title>Break Schedule Tool</title>
+    <!-- All CSS is bundled by Vite from src/main.js — no CDN links -->
+</head>
+
+<body id="app-root">
+    <div class="container mt-5">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="card-title mb-0">Break Schedule Tool</h4>
+            </div>
+
+            <div class="card-body">
+                <!-- File Selection Section -->
+                <div class="text-center mb-4 pb-4 border-bottom">
+                    <h5 class="mb-3">Upload Schedule</h5>
+                    <p class="text-muted mb-3">Select the custom daily schedule (.xlsx) exported from UKG</p>
+                    <button id="selectFileButton" class="btn btn-primary btn-lg">
+                        <i class="fas fa-file-upload mr-2"></i>Select File
+                    </button>
+                    <input type="file" id="fileInput" accept=".xlsx" class="d-none" />
+                    <div class="mt-3">
+                        <span id="selectedFileName" class="badge badge-secondary">No file selected</span>
+                    </div>
+                </div>
+
+                <!-- Export Button (appears after file selection) -->
+                <div id="downloadLinkContainer" class="text-center mb-4 pb-4 border-bottom d-none">
+                    <h5 class="mb-3 text-success">Schedule Ready</h5>
+                    <p class="text-muted mb-3">Your break schedule has been generated with optimized coverage</p>
+                    <a id="downloadLink" class="btn btn-success btn-lg" download="Schedule.xlsx">
+                        <i class="fas fa-download mr-2"></i>Save Schedule
+                    </a>
+                </div>
+
+                <!-- Settings Section -->
+                <div class="settings-header text-center mb-4">
+                    <h5 class="mb-2">
+                        <i class="fas fa-cog mr-2 text-warning"></i>Settings
+                    </h5>
+                    <p class="text-muted">Customize your schedule preferences and optimization rules</p>
+                </div>
+
+                <!-- Department Coverage Optimization Settings (Collapsible) -->
+                <div class="card mb-3 settings-card">
+                    <div class="card-header settings-card-header" id="departmentOptimizationHeader">
+                        <button class="btn btn-link btn-block text-left text-dark font-weight-bold p-0" type="button"
+                                data-toggle="collapse" data-target="#departmentOptimizationCollapse"
+                                aria-expanded="false" aria-controls="departmentOptimizationCollapse">
+                            <span class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-users mr-2 text-warning"></i>Coverage Optimization Groups</span>
+                                <i class="fas fa-chevron-down text-warning"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="departmentOptimizationCollapse" aria-labelledby="departmentOptimizationHeader">
+                        <div class="p-3">
+                            <p class="mb-3">Organize departments into groups for optimized break scheduling. Employees in the same group will have their breaks coordinated to maintain coverage.</p>
+
+                            <!-- Add Group Button -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button id="addGroupBtn" class="btn btn-warning btn-sm group-action-btn">
+                                    <i class="fas fa-plus mr-1"></i>Add Coverage Group
+                                </button>
+                                <div class="d-flex gap-2">
+                                    <button id="exportGroupsBtn" class="btn btn-outline-info btn-sm group-action-btn" title="Export groups to file">
+                                        <i class="fas fa-file-export mr-1"></i>Export
+                                    </button>
+                                    <button id="importGroupsBtn" class="btn btn-outline-info btn-sm group-action-btn ml-2" title="Import groups from file">
+                                        <i class="fas fa-file-import mr-1"></i>Import
+                                    </button>
+                                    <button id="resetGroupsBtn" class="btn btn-outline-warning btn-sm group-action-btn ml-2" title="Reset to default groups">
+                                        <i class="fas fa-undo mr-1"></i>Reset
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="file" id="importGroupsInput" accept=".json" class="d-none">
+
+                            <!-- Groups Container -->
+                            <div id="groupsContainer">
+                                <!-- Groups will be dynamically loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operating Hours Settings (Collapsible) -->
+                <div class="card mb-3 settings-card">
+                    <div class="card-header settings-card-header" id="operatingHoursHeader">
+                        <button class="btn btn-link btn-block text-left text-dark font-weight-bold p-0" type="button"
+                                data-toggle="collapse" data-target="#operatingHoursCollapse"
+                                aria-expanded="false" aria-controls="operatingHoursCollapse">
+                            <span class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-clock mr-2 text-warning"></i>Operating Hours</span>
+                                <i class="fas fa-chevron-down text-warning"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="operatingHoursCollapse" aria-labelledby="operatingHoursHeader">
+                        <div class="p-3">
+                        <p class="mb-3">Set your store's operating hours for each day. The tool uses these hours to determine when to optimize coverage during break scheduling.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 100px;"><label for="mondayStart" class="mb-0">Monday</label></td>
+                                        <td><input type="time" id="mondayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center" style="width: 30px;">to</td>
+                                        <td><input type="time" id="mondayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="tuesdayStart" class="mb-0">Tuesday</label></td>
+                                        <td><input type="time" id="tuesdayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="tuesdayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="wednesdayStart" class="mb-0">Wednesday</label></td>
+                                        <td><input type="time" id="wednesdayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="wednesdayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="thursdayStart" class="mb-0">Thursday</label></td>
+                                        <td><input type="time" id="thursdayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="thursdayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="fridayStart" class="mb-0">Friday</label></td>
+                                        <td><input type="time" id="fridayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="fridayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="saturdayStart" class="mb-0">Saturday</label></td>
+                                        <td><input type="time" id="saturdayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="saturdayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label for="sundayStart" class="mb-0">Sunday</label></td>
+                                        <td><input type="time" id="sundayStart" class="form-control form-control-sm operating-hours-input"></td>
+                                        <td class="text-center">to</td>
+                                        <td><input type="time" id="sundayEnd" class="form-control form-control-sm operating-hours-input"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Settings (Collapsible) -->
+                <div class="card mb-3 settings-card">
+                    <div class="card-header settings-card-header" id="advancedSettingsHeader">
+                        <button class="btn btn-link btn-block text-left text-dark font-weight-bold p-0" type="button"
+                                data-toggle="collapse" data-target="#advancedSettingsCollapse"
+                                aria-expanded="false" aria-controls="advancedSettingsCollapse">
+                            <span class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-sliders-h mr-2 text-warning"></i>Advanced Settings</span>
+                                <i class="fas fa-chevron-down text-warning"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="advancedSettingsCollapse" aria-labelledby="advancedSettingsHeader">
+                        <div class="p-3">
+                            <div class="alert alert-warning small mb-3" role="alert">
+                                <i class="fas fa-exclamation-triangle mr-2"></i><strong>Warning:</strong> Only modify these settings if you understand how the break optimization algorithm works. Incorrect values may result in poor coverage or non-compliant break scheduling.
+                            </div>
+
+                            <h6 class="font-weight-bold mb-3">Break Time Flexibility</h6>
+
+                            <div class="form-group">
+                                <label for="maxEarly">
+                                    Maximum Early Start: <strong><span id="maxEarlyValue">15</span> minutes</strong>
+                                </label>
+                                <div class="slider-container">
+                                    <div class="slider-wrapper">
+                                        <input type="range" class="form-control-range" id="maxEarly" min="0" max="45" step="15" value="15">
+                                        <div class="slider-ticks">
+                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">15</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">30</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">45</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">How early any break can be scheduled before the ideal time. Higher values give more flexibility for coverage optimization.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="maxDelay">
+                                    Maximum Delay: <strong><span id="maxDelayValue">30</span> minutes</strong>
+                                </label>
+                                <div class="slider-container">
+                                    <div class="slider-wrapper">
+                                        <input type="range" class="form-control-range" id="maxDelay" min="0" max="45" step="15" value="30">
+                                        <div class="slider-ticks">
+                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">15</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">30</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">45</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">How late any break can be scheduled past the ideal time. Higher values give more flexibility for coverage optimization.</small>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <h6 class="font-weight-bold mb-3">Coverage Optimization Weights</h6>
+
+                            <div class="form-group">
+                                <label for="deptWeightMultiplier">
+                                    Same-Department Coverage Weight: <strong><span id="deptWeightMultiplierValue">4</span>×</strong>
+                                </label>
+                                <div class="slider-container">
+                                    <div class="slider-wrapper">
+                                        <input type="range" class="form-control-range" id="deptWeightMultiplier" min="1" max="10" step="1" value="4">
+                                        <div class="slider-ticks">
+                                            <div class="slider-tick"><span class="slider-tick-label">1</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">2</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">3</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">4</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">5</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">6</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">7</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">8</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">9</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">10</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">How much to prioritize same-department coverage over overall group coverage. Higher values mean breaks are scheduled to maintain department coverage first, then group coverage second.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proximityWeight">
+                                    Ideal Break Time Priority: <strong><span id="proximityWeightValue">1</span>×</strong>
+                                </label>
+                                <div class="slider-container">
+                                    <div class="slider-wrapper">
+                                        <input type="range" class="form-control-range" id="proximityWeight" min="0" max="10" step="1" value="1">
+                                        <div class="slider-ticks">
+                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">1</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">2</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">3</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">4</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">5</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">6</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">7</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">8</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">9</span></div>
+                                            <div class="slider-tick"><span class="slider-tick-label">10</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">How strongly to prefer ideal break times when coverage scores are similar. Higher values mean breaks stay closer to ideal times (2 hours for rest, 4 hours for meals).</small>
+                            </div>
+
+                            <div class="mt-3">
+                                <button id="resetAdvancedBtn" class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-undo mr-1"></i>Reset to Defaults
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- State Labor Laws Settings (Collapsible) -->
+                <div class="card mb-3 settings-card">
+                    <div class="card-header settings-card-header" id="laborLawsHeader">
+                        <button class="btn btn-link btn-block text-left text-dark font-weight-bold p-0" type="button"
+                                data-toggle="collapse" data-target="#laborLawsCollapse"
+                                aria-expanded="false" aria-controls="laborLawsCollapse">
+                            <span class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-gavel mr-2 text-warning"></i>State Labor Laws</span>
+                                <i class="fas fa-chevron-down text-warning"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="laborLawsCollapse" aria-labelledby="laborLawsHeader">
+                        <div class="p-3">
+                            <div class="form-group">
+                                <label for="stateSelect">Select State</label>
+                                <select class="form-control" id="stateSelect">
+                                    <option value="california" selected>California</option>
+                                </select>
+                                <small class="form-text text-muted">More states coming soon...</small>
+                            </div>
+
+                            <div id="californiaLaborLaws">
+                                <h6 class="font-weight-bold mt-3">California Labor Law Requirements</h6>
+                                <div class="small">
+                                    <p><a href="https://www.dir.ca.gov/dlse/RestAndMealPeriods.pdf" target="_blank" rel="noopener noreferrer">California DLSE Rest and Meal Periods</a></p>
+                                    <p class="text-muted"><em>This tool automatically schedules breaks in compliance with California law and REI policy, while optimizing coverage to maintain service levels.</em></p>
+                                    <p><strong>Rest periods</strong></p>
+                                    <p>Employers are required to give each employee at least a ten (10) minute paid break for each four (4) hours worked (or major fraction of four (4) hours). If an employee works three and one-half (3½) hours or less, it is not required that a break be given to that employee. Breaks should be given to employees as near to the middle of the four (4) hours segment of time as is practical.</p>
+                                    <ul>
+                                        <li>3:30+ hours: 1 rest break</li>
+                                        <li>6:00+ hours: 2 rest breaks</li>
+                                        <li>10:00+ hours: 3 rest breaks</li>
+                                    </ul>
+
+                                    <p class="mt-3"><strong>Meal periods</strong></p>
+                                    <p>An employer may not employ an employee for a work period of more than five (5) hours per day without providing the employee with a meal period of not less than thirty (30) minutes. If the total work period per day is no more than six (6) hours, the meal period may be waived by mutual consent of both employer and employee. A second meal period of not less than thirty (30) minutes is required if an employee works more than ten (10) hours per day.</p>
+                                    <ul>
+                                        <li>5:00+ hours: 1 meal period</li>
+                                        <li>10:00+ hours: 2 meal periods</li>
+                                    </ul>
+                                </div>
+
+                                <h6 class="font-weight-bold mt-4">REI Policy</h6>
+                                <div class="small">
+                                    <p><strong>Rest periods</strong></p>
+                                    <ul>
+                                        <li>REI provides <strong>15-minute</strong> rest breaks</li>
+                                        <li>Scheduled approximately two hours into each work period</li>
+                                    </ul>
+
+                                    <p class="mt-3"><strong>Meal periods</strong></p>
+                                    <ul>
+                                        <li>30-minute unpaid meal period</li>
+                                        <li>Scheduled approximately 4:00-4:30 hours into the shift</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formatting Settings (Collapsible) -->
+                <div class="card mb-3 settings-card">
+                    <div class="card-header settings-card-header" id="formattingHeader">
+                        <button class="btn btn-link btn-block text-left text-dark font-weight-bold p-0" type="button"
+                                data-toggle="collapse" data-target="#formattingCollapse"
+                                aria-expanded="false" aria-controls="formattingCollapse">
+                            <span class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-file-alt mr-2 text-info"></i>Formatting</span>
+                                <i class="fas fa-chevron-down text-info"></i>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="formattingCollapse" aria-labelledby="formattingHeader">
+                        <div class="p-3">
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="experimentalFormatting">
+                                    <label class="custom-control-label" for="experimentalFormatting">
+                                        <strong>Enable experimental formatting (in progress)</strong>
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Enables a new style of formatting that isolates one department per page. This feature is currently under development.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- END UPDATED SETTINGS BLOCK -->
+            </div>
+
+            <!-- Hidden Link for Triggering the Download -->
+            <a id="hiddenDownloadLink" style="display: none;"></a>
+        </div>
+    </div>
+
+    <!-- Footer for ownership notice -->
+    <footer class="text-center mt-4">
+        <p>&copy; 2025 Kaden Campbell. All rights reserved.</p>
+    </footer>
+
+    <!-- Modal for Adding/Editing Coverage Groups -->
+    <div class="modal fade" id="groupModal" tabindex="-1" role="dialog" aria-labelledby="groupModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupModalLabel">Add Coverage Group</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Group Name Input -->
+                    <div class="form-group">
+                        <label for="groupNameInput">Group Name</label>
+                        <input type="text" class="form-control" id="groupNameInput" placeholder="e.g., Building 2 Cross-trained">
+                    </div>
+
+                    <!-- Department Selection -->
+                    <div class="form-group">
+                        <label>Select Departments</label>
+                        <p class="text-muted small mb-2">Choose which departments belong to this coverage group. Only departments not already in other groups are shown.</p>
+
+                        <!-- Search box for filtering departments -->
+                        <input type="text" class="form-control form-control-sm mb-2" id="departmentSearchInput" placeholder="Search departments...">
+
+                        <!-- Accordion for Department Categories -->
+                        <div class="accordion" id="departmentAccordion" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Departments will be dynamically loaded here -->
+                        </div>
+
+                        <!-- Selected Departments Display -->
+                        <div class="mt-3">
+                            <strong>Selected Departments:</strong>
+                            <div id="selectedDepartments" class="mt-2">
+                                <span class="text-muted">No departments selected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveGroupBtn">Save Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application entry point — bundled by Vite (includes Bootstrap JS, jQuery, app code) -->
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

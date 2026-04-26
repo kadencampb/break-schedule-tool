@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "Building 2 Cross-trained",
+    "departments": [
+      {
+        "main": "Hardgoods",
+        "sub": "Action Sports"
+      },
+      {
+        "main": "Hardgoods",
+        "sub": "Rentals"
+      },
+      {
+        "main": "Frontline",
+        "sub": "Cashier Bldg 2"
+      },
+      {
+        "main": "Frontline",
+        "sub": "Customer Service Bldg 2"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Camping",
+    "departments": [
+      {
+        "main": "Hardgoods",
+        "sub": "Camping"
+      },
+      {
+        "main": "Hardgoods",
+        "sub": "Hardgoods"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Clothing",
+    "departments": [
+      {
+        "main": "Softgoods",
+        "sub": "Clothing"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Softgoods"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Fitting Room"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Mens Clothing"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Womens Clothing"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Outfitter"
+      },
+      {
+        "main": "Softgoods",
+        "sub": "Childrenswear"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Footwear",
+    "departments": [
+      {
+        "main": "Softgoods",
+        "sub": "Footwear"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Cashier",
+    "departments": [
+      {
+        "main": "Frontline",
+        "sub": "Cashier"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Customer Service",
+    "departments": [
+      {
+        "main": "Frontline",
+        "sub": "Customer Service"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Order Fulfillment",
+    "departments": [
+      {
+        "main": "Order Fulfillment",
+        "sub": "Order Fulfillment"
+      },
+      {
+        "main": "Order Fulfillment",
+        "sub": "Order Fulfillment Bldg 2"
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Stocking",
+    "departments": [
+      {
+        "main": "Product Movement",
+        "sub": "Softgoods Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Stocking"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Snow Sports Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Ops Stock Bldg 2"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Ops Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Hardgoods Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Footwear Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Cycling Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Clothing Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Camping Stock"
+      },
+      {
+        "main": "Product Movement",
+        "sub": "Action Sports Stock"
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Service Advisor",
+    "departments": [
+      {
+        "main": "Shop",
+        "sub": "Service Advisor"
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Management",
+    "departments": [
+      {
+        "main": "Mgmt Retail",
+        "sub": "Management"
+      },
+      {
+        "main": "Mgmt Retail",
+        "sub": "Management Bldg 2"
+      }
+    ]
+  }
+]
