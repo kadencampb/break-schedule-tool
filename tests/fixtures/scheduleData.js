@@ -18,8 +18,8 @@ export const BASIC_SCHEDULE = [
     // --- Employee rows ---
     ['Cashier', null,       null,           null], // row 7 — dept header
     [null,      'Cashier',  'Alice Smith',  '8:00AM-4:30PM'], // row 8 — 8.5h shift
-    [null,      'Cashier',  'Bob Jones',    '9:00AM-3:00PM'], // row 9 — 6h shift
-    [null,      'Cashier',  'Carol Davis',  '12:00PM-6:00PM'], // row 10 — 6h shift
+    [null,      'Cashier',  'Bob Jones',    '9:00AM-3:00PM'], // row 9 — 6h shift (1 rest under strict DLSE)
+    [null,      'Cashier',  'Carol Davis',  '12:00PM-6:00PM'], // row 10 — 6h shift (1 rest under strict DLSE)
     ['Clothing', null,      null,           null], // row 11 — dept header
     [null,      'Clothing', 'Dave Wilson',  '10:00AM-2:00PM'], // row 12 — 4h shift
     [null,      'Clothing', 'Eve Brown',    '7:00AM-3:30PM'], // row 13 — 8.5h shift
@@ -92,6 +92,24 @@ export const TEST_ADV_SETTINGS = {
     deptWeightMultiplier: 4,
     proximityWeight: 1
 };
+
+/**
+ * Schedule with a natural 30-min meal gap in a continuous shift.
+ * "Meal Gap Employee" works 10AM–2:45PM then 3:15PM–6:30PM (8h total, 30-min gap).
+ * This tests workedTimeToClockTime-based break placement:
+ *   Break 1 ideal: 120 min worked from 10AM = 12PM
+ *   Break 2 ideal: 360 min worked = 75 min into second segment (3:15PM + 75 min = 4:30PM)
+ */
+export const MEAL_GAP_SCHEDULE = [
+    ['Date: 2024-01-15'],
+    ['Location: Test Store'],
+    ['Dept', 'Job', 'Name'],
+    [], [], [],
+    ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'],
+    ['Cashier', null,      null,              null],
+    [null,      'Cashier', 'Meal Gap Employee', '10:00AM-2:45PM'], // first segment: 285 min
+    [null,      'Cashier', 'Meal Gap Employee', '3:15PM-6:30PM'],  // second segment: 195 min
+];
 
 /** Operating hours for testing (9 AM – 9 PM) */
 export const TEST_OPERATING_HOURS = {

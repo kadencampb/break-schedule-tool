@@ -5,6 +5,7 @@ import {
     SPLIT_SHIFT_SCHEDULE,
     LONG_SHIFT_SCHEDULE,
     SHORT_SHIFT_SCHEDULE,
+    MEAL_GAP_SCHEDULE,
     TEST_GROUPS,
     TEST_ADV_SETTINGS,
     TEST_OPERATING_HOURS
@@ -58,13 +59,12 @@ describe('California law — standard shifts', () => {
         expect(alice.rest2).not.toBeNull();
     });
 
-    it('6h shift gets two rests and one meal', () => {
+    it('6h shift gets one rest and one meal (strict CA DLSE: 360 min, remainder 120, not > 120)', () => {
         const { breaks } = scheduleBreaks(BASIC_SCHEDULE, OPTIONS);
         const bob = breaks['Bob Jones'];
-        // 6h > 5h → 1 meal; 6h - 30m = 5.5h → 2 rests
         expect(bob.rest1).not.toBeNull();
         expect(bob.meal).not.toBeNull();
-        expect(bob.rest2).not.toBeNull();
+        expect(bob.rest2).toBeNull(); // 6h exactly = 1 break, not 2
     });
 });
 
@@ -159,6 +159,49 @@ describe('Split shift', () => {
         expect(grace.rest1).not.toBeNull();
         expect(grace.meal).not.toBeNull();
         expect(grace.rest2).not.toBeNull();
+    });
+});
+
+// -------------------------------------------------------------------------
+// Worked-time break placement (meal-gap shift)
+// -------------------------------------------------------------------------
+
+describe('Break placement — continuous shift with meal gap', () => {
+    // Meal Gap Employee: 10AM–2:45PM (285 min) + 3:15PM–6:30PM (195 min), 30-min gap
+    // Total: 480 min → 2 rest breaks
+    // Break 1 ideal: 120 net worked min from 10AM = 12:00PM (720)
+    // Break 2 ideal: 360 net worked min = 75 min into second segment → 3:15PM + 75 = 4:30PM (990)
+
+    it('schedules two rest breaks for an 8h shift with a 30-min meal gap', () => {
+        const { breaks } = scheduleBreaks(MEAL_GAP_SCHEDULE, OPTIONS);
+        const emp = breaks['Meal Gap Employee'];
+        expect(emp.rest1).not.toBeNull();
+        expect(emp.rest2).not.toBeNull();
+        expect(emp.meal).toBeNull(); // natural gap serves as meal — no scheduled meal break
+    });
+
+    it('first rest break is near the 2-hour worked mark (12PM ± 30 min)', () => {
+        const { breaks } = scheduleBreaks(MEAL_GAP_SCHEDULE, OPTIONS);
+        const emp = breaks['Meal Gap Employee'];
+        // Ideal: 720 (12:00PM). Allow ±30 min = [690, 750]
+        expect(emp.rest1).toBeGreaterThanOrEqual(690);
+        expect(emp.rest1).toBeLessThanOrEqual(750);
+    });
+
+    it('second rest break is near the 4:30PM worked mark (360 min worked ± 30 min)', () => {
+        const { breaks } = scheduleBreaks(MEAL_GAP_SCHEDULE, OPTIONS);
+        const emp = breaks['Meal Gap Employee'];
+        // Ideal: 990 (4:30PM). Allow ±30 min = [960, 1020]
+        expect(emp.rest2).toBeGreaterThanOrEqual(960);
+        expect(emp.rest2).toBeLessThanOrEqual(1020);
+    });
+
+    it('both rest breaks fall within actual worked segments, not in the gap', () => {
+        const { breaks, employeeSchedules } = scheduleBreaks(MEAL_GAP_SCHEDULE, OPTIONS);
+        const emp = breaks['Meal Gap Employee'];
+        const schedule = employeeSchedules.get('Meal Gap Employee');
+        if (emp.rest1 != null) expect(schedule.isValidBreakWindow(emp.rest1, 15)).toBe(true);
+        if (emp.rest2 != null) expect(schedule.isValidBreakWindow(emp.rest2, 15)).toBe(true);
     });
 });
 

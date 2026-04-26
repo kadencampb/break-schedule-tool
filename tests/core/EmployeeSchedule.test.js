@@ -89,30 +89,62 @@ describe('EmployeeSchedule — standard shift', () => {
         expect(long.mealsRequired()).toBe(2);
     });
 
-    it('restBreaksRequired: 3h = 0 rests', () => {
+    // -----------------------------------------------------------------------
+    // restBreaksRequired — strict CA DLSE formula
+    // 1 break per 4h or major fraction (> 2h). No break if total < 3.5h.
+    // -----------------------------------------------------------------------
+
+    it('restBreaksRequired: 3h (180 min) = 0 rests', () => {
         const short = new EmployeeSchedule('Dave');
         short.addSegment('Cashier', 'Cashier', h(9), h(12), 0);
         expect(short.restBreaksRequired()).toBe(0);
     });
 
-    it('restBreaksRequired: 4h = 1 rest', () => {
+    it('restBreaksRequired: 3.5h (210 min) = 1 rest', () => {
+        const threeHalf = new EmployeeSchedule('Dave');
+        threeHalf.addSegment('Cashier', 'Cashier', h(9), h(12.5), 0);
+        expect(threeHalf.restBreaksRequired()).toBe(1);
+    });
+
+    it('restBreaksRequired: 4h (240 min) = 1 rest', () => {
         const four = new EmployeeSchedule('Eve');
         four.addSegment('Cashier', 'Cashier', h(9), h(13), 0);
         expect(four.restBreaksRequired()).toBe(1);
     });
 
-    it('restBreaksRequired: 6.5h (with 30m meal) = 2 rests', () => {
-        // 6.5h shift - 30m meal = 6h worked → 2 rests
+    it('restBreaksRequired: exactly 6h (360 min) = 1 rest (remainder 120 min, not > 120)', () => {
         const six = new EmployeeSchedule('Frank');
-        six.addSegment('Cashier', 'Cashier', h(8), h(14.5), 0);
-        expect(six.restBreaksRequired(30)).toBe(2);
+        six.addSegment('Cashier', 'Cashier', h(9), h(15), 0);
+        expect(six.restBreaksRequired()).toBe(1);
     });
 
-    it('restBreaksRequired: 10h+ worked = 3 rests', () => {
-        const ten = new EmployeeSchedule('Grace');
-        ten.addSegment('Cashier', 'Cashier', h(6), h(17), 0); // 11h shift
-        // 11h - 30m meal = 10.5h worked → 3 rests
-        expect(ten.restBreaksRequired(30)).toBe(3);
+    it('restBreaksRequired: 6h+1min (361 min) = 2 rests (remainder 121 min > 120)', () => {
+        const sixPlus = new EmployeeSchedule('Frank');
+        sixPlus.addSegment('Cashier', 'Cashier', 0, 361, 0);
+        expect(sixPlus.restBreaksRequired()).toBe(2);
+    });
+
+    it('restBreaksRequired: 6.5h (390 min) = 2 rests', () => {
+        // 390 min: floor(390/240)=1, remainder=150, 150 > 120 → 2 rests
+        const sixHalf = new EmployeeSchedule('Frank');
+        sixHalf.addSegment('Cashier', 'Cashier', h(8), h(14.5), 0);
+        expect(sixHalf.restBreaksRequired()).toBe(2);
+    });
+
+    it('restBreaksRequired: 8h (480 min) = 2 rests', () => {
+        const eight = new EmployeeSchedule('Grace');
+        eight.addSegment('Cashier', 'Cashier', h(9), h(17), 0);
+        expect(eight.restBreaksRequired()).toBe(2);
+    });
+
+    it('restBreaksRequired: 8.5h (510 min) = 2 rests', () => {
+        expect(emp.restBreaksRequired()).toBe(2); // Alice Smith: 8:00AM–4:30PM
+    });
+
+    it('restBreaksRequired: 11h (660 min) = 3 rests', () => {
+        const eleven = new EmployeeSchedule('Grace');
+        eleven.addSegment('Cashier', 'Cashier', h(6), h(17), 0);
+        expect(eleven.restBreaksRequired()).toBe(3);
     });
 });
 
@@ -156,9 +188,9 @@ describe('EmployeeSchedule — split shift', () => {
         expect(emp.mealsRequired()).toBe(0);
     });
 
-    it('restBreaksRequired = 2 (based on 8h worked)', () => {
-        // 8h worked, 0 meal minutes scheduled
-        expect(emp.restBreaksRequired(0)).toBe(2);
+    it('restBreaksRequired = 2 (8h combined daily total)', () => {
+        // 480 min: floor(480/240)=2, remainder=0 → 2 rests
+        expect(emp.restBreaksRequired()).toBe(2);
     });
 
     it('isWorkingAt is false during the gap', () => {
@@ -205,5 +237,55 @@ describe('EmployeeSchedule — back-to-back segments (no real gap)', () => {
         emp.addSegment('Dept', 'Job', h(8), h(12), 0);
         emp.addSegment('Dept', 'Job', h(12.25), h(16), 1); // 15-min gap
         expect(emp.isSplitShift).toBe(false);
+    });
+});
+
+describe('EmployeeSchedule — workedTimeToClockTime', () => {
+    it('single segment: maps worked offset to clock time correctly', () => {
+        const emp = new EmployeeSchedule('Alice');
+        emp.addSegment('Dept', 'Job', h(8), h(16.5), 0); // 8AM–4:30PM (510 min)
+        // 120 min worked from 8AM = 10AM
+        expect(emp.workedTimeToClockTime(120)).toBe(h(10));
+        // 360 min worked from 8AM = 2PM
+        expect(emp.workedTimeToClockTime(360)).toBe(h(14));
+    });
+
+    it('two-segment shift with meal gap: skips the gap when counting worked time', () => {
+        // 10AM–2:45PM (285 min) then 3:15PM–6:30PM (195 min), 30-min gap
+        const emp = new EmployeeSchedule('Bob');
+        emp.addSegment('Dept', 'Job', h(10), h(14.75), 0);   // 10AM–2:45PM = 285 min
+        emp.addSegment('Dept', 'Job', h(15.25), h(18.5), 1); // 3:15PM–6:30PM = 195 min
+
+        // Break 1 ideal: 120 min worked from 10AM = 12PM
+        expect(emp.workedTimeToClockTime(120)).toBe(h(12));
+
+        // Break 2 ideal: 360 min worked. After seg1 (285 min), need 75 more.
+        // Seg2 starts at 3:15PM (915). 915 + 75 = 990 = 16:30 = 4:30PM
+        expect(emp.workedTimeToClockTime(360)).toBe(h(16.5)); // 4:30PM
+    });
+
+    it('split shift: target in second segment', () => {
+        // 7AM–11AM (240 min) then 3PM–7PM (240 min), 4h gap
+        const emp = new EmployeeSchedule('Frank');
+        emp.addSegment('Cashier', 'Cashier', h(7), h(11), 0);
+        emp.addSegment('Cashier', 'Cashier', h(15), h(19), 1);
+
+        // Break 1: 120 min worked from 7AM = 9AM
+        expect(emp.workedTimeToClockTime(120)).toBe(h(9));
+
+        // Break 2: 360 min worked. After seg1 (240 min), need 120 more from 3PM = 5PM
+        expect(emp.workedTimeToClockTime(360)).toBe(h(17)); // 5PM
+    });
+
+    it('returns null when target exceeds totalWorkMinutes', () => {
+        const emp = new EmployeeSchedule('Short');
+        emp.addSegment('Dept', 'Job', h(9), h(13), 0); // 4h = 240 min
+        expect(emp.workedTimeToClockTime(241)).toBeNull();
+    });
+
+    it('returns start of first segment when target is 0', () => {
+        const emp = new EmployeeSchedule('Early');
+        emp.addSegment('Dept', 'Job', h(10), h(14), 0);
+        expect(emp.workedTimeToClockTime(0)).toBe(h(10));
     });
 });

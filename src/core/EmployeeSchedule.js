@@ -150,22 +150,57 @@ export class EmployeeSchedule {
     /**
      * Determine how many rest breaks are legally required.
      *
-     * California law — rest breaks based on total hours WORKED (excluding meal breaks):
-     * - >= 3:30 (210 min): 1 rest break
-     * - >= 5:00 (300 min): 2 rest breaks  (one on each side of the meal period)
-     * - >= 10:00 (600 min): 3 rest breaks
+     * Strict CA DLSE formula: one paid 10-minute rest per 4-hour work period or
+     * major fraction thereof. "Major fraction" = strictly more than 2 hours (120 min).
+     * No break required if total scheduled time is less than 3.5 hours (210 min).
      *
-     * Meal periods (paid or unpaid) are excluded from hours worked for this calculation.
-     * A 6-hour shift with a 30-minute meal yields 330 min of effective work, which exceeds
-     * the 300-minute threshold and therefore requires 2 rest breaks.
-     * @param {number} scheduledMealMinutes - Total minutes of scheduled meal breaks
+     * Rest breaks are paid and count as time worked, so no meal deduction is applied.
+     * Uses total segment minutes (sum of all shift segments).
+     *
+     * Examples:
+     *   3h  (180 min) → 0   (below 3.5h threshold)
+     *   3.5h (210 min) → 1   (major fraction of first 4h period)
+     *   6h  (360 min) → 1   (1 full period + 2h remainder, NOT > 2h)
+     *   6h1m (361 min) → 2   (1 full period + 121 min remainder > 120)
+     *   8h  (480 min) → 2   (2 full periods)
+     *   11h (660 min) → 3   (2 full periods + 3h remainder > 2h)
      */
-    restBreaksRequired(scheduledMealMinutes = 0) {
-        const hoursWorked = this.totalWorkMinutes - scheduledMealMinutes;
-        if (hoursWorked >= 600) return 3;
-        if (hoursWorked >= 300) return 2;
-        if (hoursWorked >= 210) return 1;
-        return 0;
+    restBreaksRequired() {
+        const total = this.totalWorkMinutes;
+        if (total < 210) return 0;
+        return Math.floor(total / 240) + (total % 240 > 120 ? 1 : 0);
+    }
+
+    /**
+     * Map a net worked-time offset to a wall clock time.
+     *
+     * Walks segments in chronological order, accumulating worked minutes.
+     * Gaps between segments are unpaid and not counted. Returns the clock time
+     * at which `targetWorkedMin` minutes of work have been completed.
+     *
+     * Used to find the ideal rest break time: break n should fall at
+     * (n * 240 - 120) net worked minutes from clock-in (midpoint of nth 4h period).
+     *
+     * @param {number} targetWorkedMin - Net worked minutes to reach
+     * @returns {number|null} Wall clock time in minutes since midnight, or null if
+     *   target exceeds totalWorkMinutes
+     *
+     * @example
+     * // 10AM-2:45PM (285 min) + 3:15PM-6:30PM (195 min), target = 360 min
+     * // Segment 1: accumulated 0+285=285 < 360. accumulated = 285.
+     * // Segment 2 starts at 3:15PM (195 min). Need 75 more → 3:15PM + 75 = 4:30PM.
+     */
+    workedTimeToClockTime(targetWorkedMin) {
+        if (targetWorkedMin > this.totalWorkMinutes) return null;
+        let accumulated = 0;
+        for (const seg of this.segments) {
+            const segDuration = seg.end - seg.start;
+            if (accumulated + segDuration >= targetWorkedMin) {
+                return seg.start + (targetWorkedMin - accumulated);
+            }
+            accumulated += segDuration;
+        }
+        return null;
     }
 
     /**

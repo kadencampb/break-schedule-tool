@@ -156,16 +156,20 @@ export function scheduleBreaks(schedule, options = {}) {
 
     for (const name of employeeOrder) {
         const empSchedule = employeeSchedules.get(name);
-        const mealMinutes = breaks[name].meal != null ? 30 : 0;
-        const restCount = empSchedule.restBreaksRequired(mealMinutes);
+        const restCount = empSchedule.restBreaksRequired();
 
         if (restCount === 0) continue;
 
         const { dept, job: subdept } = empSchedule.primaryDept();
         const group = findGroupContaining(dept, subdept, groups);
 
-        // --- First rest break (ideal: 2 hours into first segment) ---
-        const idealRest1 = empSchedule.overallStart + 120;
+        // Ideal rest break times are the 2-hour midpoints of each 4-hour worked period,
+        // mapped to wall clock time using the running worked-time total.
+        // This correctly accounts for meal gaps: the clock pauses during unpaid time.
+        //   Break 1: 120 net worked minutes from clock-in (midpoint of period 1)
+        //   Break 2: 360 net worked minutes from clock-in (midpoint of period 2)
+        //   Break 3: 600 net worked minutes from clock-in (midpoint of period 3)
+        const idealRest1 = empSchedule.workedTimeToClockTime(120) ?? empSchedule.overallStart + 120;
         if (restCount >= 1) {
             breaks[name].rest1 = scheduleRestBreak(
                 name, empSchedule, idealRest1, 'rest1',
@@ -174,8 +178,7 @@ export function scheduleBreaks(schedule, options = {}) {
             );
         }
 
-        // --- Second rest break (ideal: 6.5 hours into overall span) ---
-        const idealRest2 = empSchedule.overallStart + 390;
+        const idealRest2 = empSchedule.workedTimeToClockTime(360) ?? empSchedule.overallStart + 360;
         if (restCount >= 2) {
             breaks[name].rest2 = scheduleRestBreak(
                 name, empSchedule, idealRest2, 'rest2',
@@ -184,11 +187,10 @@ export function scheduleBreaks(schedule, options = {}) {
             );
         }
 
-        // --- Third rest break (rare: 10+ hour shifts) ---
+        const idealRest3 = empSchedule.workedTimeToClockTime(600) ?? empSchedule.overallStart + 600;
         if (restCount >= 3) {
-            const afterRest2 = (breaks[name].rest2 ?? idealRest2) + 15 + 120;
             breaks[name].rest3 = scheduleRestBreak(
-                name, empSchedule, afterRest2, 'rest3',
+                name, empSchedule, idealRest3, 'rest3',
                 dept, subdept, group, breaks, employeeSchedules,
                 startOfDay, endOfDay, advSettings, log
             );
