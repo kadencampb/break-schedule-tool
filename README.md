@@ -1,8 +1,8 @@
 # Break Schedule Tool
 
-I built this tool while working in retail to solve a real daily problem: managers spend 20-45 minutes manually figuring out breaks from a printed UKG schedule, and frequently end up out of compliance with California labor law. This tool takes the UKG export, calculates legally correct meal periods and rest breaks for every employee (including split shifts), and writes them back into the spreadsheet.
+I built this tool while working in retail to streamline a time-consuming daily task. Administrators and managers would spend 15-30 minutes each day manually determining breaks from a daily schedule spreadsheet, and it wasn't uncommon for there to be issus with compliance with state labor law. This tool takes the exported daily schedule from the UKG Retail Schedule Planner, calculates legally compliant meal periods and rest breaks for every employee (including split shifts), and writes them back into the spreadsheet.
 
-I originally wrote it as a quick script. This version is a full refactor using MVC, Facade, and Observer patterns, with 94 unit tests, a Vite build pipeline, and automated deployment through GitHub Actions.
+I originally wrote it as a quick macro for Excel. It evolved into a basic web app, and as it has grown, I have recently refactored it to incorporate MVC, Facade, and Observer patterns, with 94 unit tests, a Vite build pipeline, and automated deployment through GitHub Actions. The software had rapidly inflated and I need to encapsulate functionality to reduce bugs when adding features or changing functionality.
 
 **Live Demo:** [kadencampb.github.io/break-schedule-tool](https://kadencampb.github.io/break-schedule-tool)
 
@@ -10,7 +10,7 @@ I originally wrote it as a quick script. This version is a full refactor using M
 
 ## What it does
 
-1. Upload the UKG-exported `.xlsx` file
+1. Upload the custom daily schedule `.xlsx` file from UKG.
 2. The app parses every shift, groups employees who appear in two rows (split shifts), and calculates the correct number of meals and rest breaks under CA law
 3. Break times are optimized so coworkers in the same department aren't on break at the same time
 4. The completed schedule downloads as a formatted `.xlsx` file
