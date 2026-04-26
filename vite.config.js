@@ -2,7 +2,9 @@ import { defineConfig } from 'vite';
 import inject from '@rollup/plugin-inject';
 
 export default defineConfig({
-    base: './',
+    // Dev server uses '/' so localhost:5173 works without a subpath.
+    // Production build uses the GitHub Pages subdirectory.
+    base: process.env.NODE_ENV === 'production' ? '/break-schedule-tool/' : '/',
     plugins: [
         // Bootstrap 4 JavaScript uses jQuery as a peer dependency.
         // The inject plugin provides $ and jQuery as module-level imports in
