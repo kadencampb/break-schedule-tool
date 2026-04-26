@@ -1,18 +1,21 @@
 # Break Schedule Tool
 
-A client-side web application that automatically generates legally-compliant California employee break schedules from UKG schedule exports. Rebuilt from a 2,500-line monolith into a professional MVC architecture with 94 passing unit tests, a Vite build pipeline, and GitHub Pages CI/CD.
+I built this tool while working in retail to solve a real daily problem: managers spend 20-45 minutes manually figuring out breaks from a printed UKG schedule, and frequently end up out of compliance with California labor law. This tool takes the UKG export, calculates legally correct meal periods and rest breaks for every employee (including split shifts), and writes them back into the spreadsheet.
 
-> **Portfolio note:** This project started as a personal productivity tool built while working in retail. The refactor documented here demonstrates enterprise software engineering patterns — MVC, Facade, Inheritance, Observer — rigorous testing, security hardening, and CI/CD, in support of a career transition to software engineering.
+I originally wrote it as a quick script. This version is a full refactor using MVC, Facade, and Observer patterns, with 94 unit tests, a Vite build pipeline, and automated deployment through GitHub Actions.
 
-**Live Demo:** [GitHub Pages](https://YOUR_USERNAME.github.io/break-schedule-tool)
+**Live Demo:** [kadencampb.github.io/break-schedule-tool](https://kadencampb.github.io/break-schedule-tool)
 
 ---
 
-## The Problem
+## What it does
 
-Managers at large retail stores manually copy break times from a printed UKG schedule into a separate spreadsheet — a process that takes 20–45 minutes per day and is prone to California labor law errors (incorrect meal periods, missed rest breaks, breaks scheduled during split shift gaps).
+1. Upload the UKG-exported `.xlsx` file
+2. The app parses every shift, groups employees who appear in two rows (split shifts), and calculates the correct number of meals and rest breaks under CA law
+3. Break times are optimized so coworkers in the same department aren't on break at the same time
+4. The completed schedule downloads as a formatted `.xlsx` file
 
-This tool accepts a UKG-exported `.xlsx` file, parses all employee shifts including split shifts, applies California meal period and rest break rules, optimizes break times by coverage group, then writes the results back into the original spreadsheet format for download.
+All processing happens in the browser. Nothing is uploaded anywhere.
 
 ---
 
@@ -22,17 +25,17 @@ This tool accepts a UKG-exported `.xlsx` file, parses all employee shifts includ
 
 | Pattern | Where Applied | Purpose |
 |---|---|---|
-| **MVC** | `models/` ↔ `controllers/` ↔ `views/` | Separates business logic from UI; core scheduling is testable without a DOM |
-| **Facade** | `StorageFacade`, `ExcelFacade` | Hides `localStorage` JSON quirks and `xlsx.js` sheet manipulation behind clean interfaces |
-| **Inheritance** | `BaseModel → SettingsModel / CoverageGroupModel` | Shared Observer behavior without duplication |
-| **Inheritance** | `BaseView → GroupsView / ModalView / FileView / SettingsView` | Shared DOM helpers (`escapeHtml`, `on`, `emit`, `showToast`) without duplication |
-| **Observer** | `BaseModel.subscribe / notify` | Controllers subscribe to model events; views re-render on `change:hours`, `change:groups`, etc. without direct coupling |
+| **MVC** | `models/` + `controllers/` + `views/` | Keeps scheduling logic out of the UI so it can be tested without a browser |
+| **Facade** | `StorageFacade`, `ExcelFacade` | Wraps `localStorage` and `xlsx.js` behind clean interfaces so the rest of the app doesn't care about the details |
+| **Inheritance** | `BaseModel` -> `SettingsModel`, `CoverageGroupModel` | Shared Observer behavior in one place |
+| **Inheritance** | `BaseView` -> all concrete views | Shared DOM helpers (`escapeHtml`, `on`, `emit`, `showToast`) in one place |
+| **Observer** | `BaseModel.subscribe` / `notify` | Controllers subscribe to model events so views re-render on data changes without direct coupling |
 
 ### MVC Layer Diagram
 
 ```mermaid
 flowchart LR
-    subgraph Core ["src/core — Pure Logic (no DOM)"]
+    subgraph Core ["src/core - Pure Logic (no DOM)"]
         constants
         helpers
         EmployeeSchedule
@@ -41,24 +44,24 @@ flowchart LR
         BreakScheduler
     end
 
-    subgraph Facades ["src/facades — Abstraction Layer"]
+    subgraph Facades ["src/facades - Abstraction Layer"]
         StorageFacade
         ExcelFacade
     end
 
-    subgraph Models ["src/models — State & Events"]
+    subgraph Models ["src/models - State and Events"]
         BaseModel --> SettingsModel
         BaseModel --> CoverageGroupModel
     end
 
-    subgraph Views ["src/views — Rendering"]
+    subgraph Views ["src/views - Rendering"]
         BaseView --> GroupsView
         BaseView --> ModalView
         BaseView --> FileView
         BaseView --> SettingsView
     end
 
-    subgraph Controllers ["src/controllers — Coordination"]
+    subgraph Controllers ["src/controllers - Coordination"]
         AppController
         GroupController
         SchedulerController
@@ -128,15 +131,15 @@ classDiagram
 
 ```
 src/
-├── core/                      # Pure logic — no DOM, fully unit-testable
+├── core/                      # Pure logic, no DOM, fully unit-testable
 │   ├── constants.js           # Department registry, default groups, CA law thresholds
 │   ├── helpers.js             # timeToMinutes, minutesToTime, formatName, findGroupContaining
-│   ├── EmployeeSchedule.js    # Per-employee segments; split shift aware
+│   ├── EmployeeSchedule.js    # Per-employee segments, split shift aware
 │   ├── coverage.js            # calculateCoverageMap, getCoworkersAtTime
-│   ├── optimizer.js           # findOptimalBreakTime — scores candidates by coverage impact
+│   ├── optimizer.js           # findOptimalBreakTime, scores candidates by coverage impact
 │   └── BreakScheduler.js      # Main scheduling algorithm
 ├── facades/
-│   ├── StorageFacade.js       # localStorage: namespaced keys, safe JSON parse/serialize
+│   ├── StorageFacade.js       # localStorage with namespaced keys and safe JSON handling
 │   └── ExcelFacade.js         # xlsx.js: parse, validate, style, write breaks, download
 ├── models/
 │   ├── BaseModel.js           # Observer/EventEmitter base class
@@ -149,9 +152,9 @@ src/
 │   ├── FileView.js            # File upload and download UI
 │   └── SettingsView.js        # Operating hours and advanced settings UI
 ├── controllers/
-│   ├── AppController.js       # Composition root — wires all components at startup
-│   ├── GroupController.js     # Coordinates CoverageGroupModel ↔ GroupsView ↔ ModalView
-│   └── SchedulerController.js # Orchestrates file → parse → schedule → download pipeline
+│   ├── AppController.js       # Composition root, wires all components at startup
+│   ├── GroupController.js     # Coordinates CoverageGroupModel, GroupsView, and ModalView
+│   └── SchedulerController.js # Orchestrates file -> parse -> schedule -> download
 └── main.js                    # Entry point
 
 tests/
@@ -162,7 +165,7 @@ tests/
 ├── models/
 │   └── SettingsModel.test.js      # Observer pattern, operating hours date resolution
 └── fixtures/
-    └── scheduleData.js            # Synthetic test data — no real employee names or PII
+    └── scheduleData.js            # Synthetic test data, no real employee names or PII
 ```
 
 ---
@@ -180,7 +183,7 @@ sequenceDiagram
     participant BS as BreakScheduler
     participant ES as EmployeeSchedule
 
-    U->>FV: Upload .xlsx file (local, no upload to server)
+    U->>FV: Upload .xlsx file (local, no server upload)
     FV->>SC: CustomEvent file:process
     SC->>EF: parseWorkbook(ArrayBuffer)
     EF->>SC: raw row data
@@ -199,7 +202,7 @@ sequenceDiagram
     end
 
     SC->>EF: download(workbook, filename)
-    EF->>U: .xlsx file — saved to local disk
+    EF->>U: .xlsx file saved to local disk
 ```
 
 ### Split Shift Break Decision Flow
@@ -209,19 +212,19 @@ flowchart TD
     A[Employee row parsed] --> B{Name already in\nschedules map?}
     B -- No --> C[new EmployeeSchedule]
     B -- Yes --> D[Retrieve existing]
-    C --> E[addSegment — sorted chronologically]
+    C --> E[addSegment, sorted chronologically]
     D --> E
     E --> F{totalWorkMinutes\n>= 300 min?}
     F -- No --> G[No meal required]
-    F -- Yes --> H{gapSatisfiesMealPeriod?\ngap ≥ 30 min}
-    H -- Yes --> I[Gap serves as meal —\nno break scheduled]
+    F -- Yes --> H{gapSatisfiesMealPeriod?\ngap >= 30 min}
+    H -- Yes --> I[Gap serves as meal,\nno break scheduled]
     H -- No --> J[Schedule 30-min meal\nat 4h mark]
     I --> K[restBreaksRequired\nmealMinutes = 0]
     J --> L[restBreaksRequired\nmealMinutes = 30]
     K --> M[Place rest breaks]
     L --> M
     M --> N{isValidBreakWindow?\ntime + duration < segment.end}
-    N -- No --> O[Try adjacent slots ±15 min]
+    N -- No --> O[Try adjacent slots +-15 min]
     O --> M
     N -- Yes --> P[Assign break slot]
     P --> Q[Coverage optimization:\nswap if coverage unchanged]
@@ -244,7 +247,7 @@ flowchart LR
 
 ## c. Network Diagram
 
-This application is **entirely client-side**. All file processing occurs in the user's browser. No employee data is transmitted to any server.
+This app runs entirely in the browser. No employee data is sent to any server at any point.
 
 ```mermaid
 flowchart TD
@@ -254,7 +257,7 @@ flowchart TD
         OutputFile[("Downloaded .xlsx file")]
     end
 
-    subgraph GitHub ["GitHub (External — HTTPS/443 only)"]
+    subgraph GitHub ["GitHub (External, HTTPS/443 only)"]
         Pages["GitHub Pages\n(static file hosting)"]
         Actions["GitHub Actions\n(CI/CD runner)"]
         Repo["GitHub Repository\n(source of truth)"]
@@ -278,11 +281,11 @@ flowchart TD
     style OutputFile fill:#d4edda
 ```
 
-**Runtime connections:** The browser loads the app from GitHub Pages once over HTTPS. After that, all operations are local — the Content Security Policy (`connect-src 'none'`) enforces this at the browser level.
+**Runtime:** The browser loads the app from GitHub Pages over HTTPS once. After that, everything runs locally. The Content Security Policy (`connect-src 'none'`) blocks any outbound network requests at the browser level.
 
-**Build-time connections:** GitHub Actions pulls npm packages from the npm registry during CI. No packages are fetched at runtime.
+**Build-time:** GitHub Actions pulls npm packages from the registry during CI. Nothing is fetched at runtime.
 
-**CDE scope:** This application handles employee shift schedules only. It does not process, transmit, store, or display payment card data and is therefore **out of scope for PCI DSS / CDE requirements**.
+**CDE scope:** This app handles shift schedules only. It does not process, transmit, store, or display payment card data and is out of scope for PCI DSS / CDE requirements.
 
 ---
 
@@ -292,44 +295,44 @@ flowchart TD
 
 - Node.js v20 LTS or later
 - npm v9+ (included with Node.js)
-- A modern browser (Chrome, Edge, or Firefox — required for the File System Access API)
+- Chrome, Edge, or Firefox
 
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/break-schedule-tool.git
+git clone https://github.com/kadencampb/break-schedule-tool.git
 cd break-schedule-tool
 npm install
 ```
 
-All dependencies are pinned in `package-lock.json`. Use `npm ci` (not `npm install`) in automated environments to enforce exact versions.
+Dependencies are pinned in `package-lock.json`. Use `npm ci` instead of `npm install` in automated environments to enforce exact versions.
 
 ### Development
 
 ```bash
-npm run dev       # Vite dev server at http://localhost:5173
-npm test          # Run all 94 unit tests
-npm run test:watch  # Watch mode for TDD
-npm run lint      # ESLint with eslint-plugin-security
-npm run build     # Production build → dist/
+npm run dev         # Vite dev server at http://localhost:5173
+npm test            # Run all unit tests
+npm run test:watch  # Watch mode
+npm run lint        # ESLint with eslint-plugin-security
+npm run build       # Production build to dist/
 ```
 
 ### Production Deployment
 
-The CI/CD pipeline in [.github/workflows/static.yml](.github/workflows/static.yml) enforces the following gate before any deployment:
+The CI/CD pipeline in [.github/workflows/static.yml](.github/workflows/static.yml) runs this sequence on every push to `main`:
 
 ```
-npm ci → npm test → npm run lint → npm run build → deploy dist/
+npm ci -> npm test -> npm run lint -> npm run build -> deploy dist/
 ```
 
-A failed test, lint error, or build error blocks deployment automatically. Only the compiled `dist/` directory is deployed — no source files, test files, or `node_modules` reach the hosting environment.
+A failed test, lint error, or build error blocks deployment. Only the compiled `dist/` directory is deployed. Source files, tests, and `node_modules` never reach the hosting environment.
 
-### Operational Security Notes
+### Operational Notes
 
-- The app must be served over **HTTPS**. GitHub Pages enforces this by default.
-- The CSP meta tag is set at build time and cannot be overridden without a source code change and a new CI/CD run.
-- `localStorage` stores user settings (operating hours, coverage groups) only — no employee names, shift data, or PII are persisted.
-- Uploaded schedule files are processed entirely in memory and are never written to `localStorage` or sent anywhere.
+- The app requires HTTPS. GitHub Pages enforces this automatically.
+- The CSP is baked in at build time and cannot be changed without a source code update and a new CI/CD run.
+- `localStorage` stores settings only (operating hours, coverage groups). No employee names, shift data, or PII are persisted.
+- Uploaded schedule files are processed in memory and discarded when the page is closed or a new file is loaded.
 
 ---
 
@@ -339,59 +342,59 @@ A failed test, lint error, or build error blocks deployment automatically. Only 
 
 | Item | Value | Notes |
 |---|---|---|
-| Protocol | HTTPS | TLS 1.2+ enforced by GitHub Pages |
-| Port | 443 | Standard HTTPS — no custom ports |
-| Outbound connections | None | CSP `connect-src 'none'` blocks all runtime fetch/XHR |
-| File I/O | Browser File API | Local read only — no server upload |
-| Persistent storage | `localStorage` | Settings only; namespaced under `breakSchedule:` prefix |
-| Cookies | None | No cookies set or read |
-| Service workers | None | No offline caching layer |
+| Protocol | HTTPS | TLS 1.2+, enforced by GitHub Pages |
+| Port | 443 | Standard HTTPS, no custom ports |
+| Outbound connections | None | CSP `connect-src 'none'` blocks all fetch/XHR at runtime |
+| File I/O | Browser File API | Local read only, no server upload |
+| Persistent storage | `localStorage` | Settings only, namespaced under `breakSchedule:` prefix |
+| Cookies | None | Not used |
+| Service workers | None | Not used |
 | WebSockets | None | Not used |
-| Third-party scripts | None | All assets bundled via npm; no CDN calls at runtime |
+| Third-party scripts | None | All assets bundled via npm, no CDN calls at runtime |
 
 ### Build-time (CI/CD)
 
 | Item | Value | Notes |
 |---|---|---|
-| Protocol | HTTPS | GitHub Actions → npm registry, GitHub Pages |
+| Protocol | HTTPS | GitHub Actions to npm registry and GitHub Pages |
 | Port | 443 | Standard HTTPS |
-| npm registry | registry.npmjs.org | `npm ci` only — locked to `package-lock.json` |
+| npm registry | registry.npmjs.org | `npm ci` only, locked to `package-lock.json` |
 | GitHub Actions runner | ubuntu-latest | Ephemeral, GitHub-managed |
 
 ### Development Server
 
 | Item | Value | Notes |
 |---|---|---|
-| Protocol | HTTP | Local only — `localhost:5173` |
-| Port | 5173 | Vite default — not exposed externally |
+| Protocol | HTTP | Local only, `localhost:5173` |
+| Port | 5173 | Vite default, not exposed externally |
 
-### Insecure / Disabled Functions
+### Disabled Functions
 
 | Item | Status | Reason |
 |---|---|---|
 | `eval()` / `new Function()` | Not used | Flagged by `eslint-plugin-security` |
-| `innerHTML` with unsanitized input | Not used | All dynamic content passes through `BaseView.escapeHtml()` |
-| CDN script loading | Disabled by CSP | `script-src 'self'` blocks external script sources |
-| Inline `<script>` tags | Disabled by CSP | `script-src 'self'` (no `'unsafe-inline'`) |
-| HTTP (non-TLS) | Not applicable | GitHub Pages redirects all HTTP to HTTPS |
+| `innerHTML` with unsanitized input | Not used | All dynamic content goes through `BaseView.escapeHtml()` |
+| CDN script loading | Blocked by CSP | `script-src 'self'` blocks external script sources |
+| Inline `<script>` tags | Blocked by CSP | `script-src 'self'` with no `'unsafe-inline'` |
+| HTTP (non-TLS) | Not applicable | GitHub Pages redirects HTTP to HTTPS |
 
 ---
 
 ## f. Administrative and Privileged Functions
 
-This application has no user accounts, authentication, or server-side components. "Administrative" functions are configuration tasks available to anyone with access to the running app.
+There are no user accounts, authentication, or server-side components. The following are configuration functions available to anyone with access to the running app.
 
 | Function | Access | Description |
 |---|---|---|
 | **Coverage group management** | Any user | Add, edit, delete, import, export, or reset department coverage groups |
-| **Operating hours configuration** | Any user | Set per-day store open/close times used to constrain break placement |
+| **Operating hours** | Any user | Set per-day store open/close times used to constrain break placement |
 | **Advanced scheduling settings** | Any user | Tune `maxEarly`, `maxDelay`, `deptWeightMultiplier`, `proximityWeight` |
-| **State selection** | Any user | Switch labor law jurisdiction (currently California only) |
-| **Source code changes** | Repository contributors | Changes require a passing CI/CD pipeline before deployment |
-| **Deployment** | GitHub Actions (automated) | Triggered on push to `main`; requires all tests and lint to pass |
-| **Repository settings** | Repository owner | Branch protection, secrets, Actions permissions — managed in GitHub |
+| **State selection** | Any user | Switch labor law jurisdiction (California only for now) |
+| **Source code changes** | Repository contributors | Require a passing CI/CD pipeline before deployment |
+| **Deployment** | GitHub Actions (automated) | Triggered on push to `main`, requires passing tests and lint |
+| **Repository settings** | Repository owner | Branch protection, secrets, Actions permissions via GitHub |
 
-**Recommendation for enterprise deployment:** If adopted organization-wide, coverage group defaults and operating hours should be pre-configured by a designated administrator and distributed via the JSON import/export feature. Store-level users should be instructed not to modify advanced settings without guidance.
+If adopted organization-wide, coverage group defaults and operating hours should be pre-configured by a designated admin and distributed via the JSON import/export feature. Store-level users should not need to touch advanced settings.
 
 ---
 
@@ -399,7 +402,7 @@ This application has no user accounts, authentication, or server-side components
 
 ### Content Security Policy
 
-The following CSP is applied via `<meta http-equiv="Content-Security-Policy">` at build time:
+Applied via `<meta http-equiv="Content-Security-Policy">` at build time:
 
 ```
 default-src 'self';
@@ -410,39 +413,37 @@ script-src 'self';
 connect-src 'none';
 ```
 
-`connect-src 'none'` is the most significant directive — it prevents the page from making any network requests after the initial load, regardless of what JavaScript runs.
-
-`'unsafe-inline'` for styles is required by Bootstrap 4's component animations. Script execution is restricted to `'self'` only.
+`connect-src 'none'` is the most important directive. It prevents the page from making any network request after the initial load, regardless of what JavaScript runs. `'unsafe-inline'` for styles is required by Bootstrap 4's component animations. Script execution is restricted to `'self'` only.
 
 ### Input Validation
 
-`ExcelFacade.validateScheduleStructure()` checks for required column headers before any data is processed. Malformed or unexpected files are rejected with a user-facing error before the scheduling pipeline runs.
+`ExcelFacade.validateScheduleStructure()` checks for required column headers before any data enters the scheduling pipeline. Malformed or unexpected files are rejected with a user-facing error.
 
 ### XSS Prevention
 
-All dynamic content derived from file input passes through `BaseView.escapeHtml()` before being written to the DOM via `textContent` or `innerHTML`. The core scheduling pipeline never touches the DOM.
+All dynamic content derived from file input goes through `BaseView.escapeHtml()` before being written to the DOM. The core scheduling pipeline has no DOM access.
 
 ### Dependency Security
 
-- All runtime dependencies are bundled at build time via Vite — no packages are fetched at runtime.
+- All runtime dependencies are bundled at build time. Nothing is fetched at runtime.
 - `package-lock.json` locks all transitive dependency versions.
-- `npm audit` should be run periodically to check for known vulnerabilities. Run `npm audit fix` for automatically resolvable issues; review manually for breaking changes.
-- `eslint-plugin-security` runs on every CI build and flags patterns such as `eval()`, unsafe regex, and unvalidated dynamic access.
+- `eslint-plugin-security` runs on every CI build and flags patterns like `eval()`, unsafe regex, and unvalidated dynamic access.
+- Run `npm audit` periodically and after any dependency update. Use `npm audit fix` for auto-resolvable issues and review manually for breaking changes.
 
 ### Privacy
 
-- No employee names, shift data, or personally identifiable information are stored in `localStorage` or transmitted anywhere.
-- Schedule files exist only in browser memory during processing and are discarded when the page is closed or a new file is uploaded.
-- The fixture data used in unit tests (`tests/fixtures/scheduleData.js`) uses entirely synthetic names — no real employee data.
+- No employee names, shift data, or PII are stored in `localStorage` or sent anywhere.
+- Schedule files exist only in browser memory during processing and are gone when the page closes or a new file is loaded.
+- Test fixtures in `tests/fixtures/scheduleData.js` use entirely synthetic names.
 
-### Maintenance
+### Maintenance Schedule
 
-| Task | Frequency | Method |
+| Task | Frequency | How |
 |---|---|---|
-| `npm audit` | Monthly or after any `npm install` | `npm audit` / `npm audit fix` |
-| Dependency updates | Quarterly | Review `npm outdated`, test, update `package-lock.json` |
+| `npm audit` | Monthly or after any dependency update | `npm audit` / `npm audit fix` |
+| Dependency updates | Quarterly | `npm outdated`, test, commit updated `package-lock.json` |
 | ESLint rule review | With major ESLint or plugin releases | Review `eslint.config.js` against updated rule sets |
-| CSP review | When adding new features | Verify no new external origins or inline scripts are required |
+| CSP review | When adding new features | Verify no new external origins or inline scripts are needed |
 
 ---
 
@@ -450,41 +451,41 @@ All dynamic content derived from file input passes through `BaseView.escapeHtml(
 
 | Role | Current Assignment | Responsibilities |
 |---|---|---|
-| **Developer / Owner** | Kaden Campbell | Feature development, bug fixes, dependency updates, CI/CD configuration |
-| **Security reviewer** | Unassigned | Periodic `npm audit` review, CSP review, code review for security-sensitive changes |
-| **IT / Cybersecurity partner** | Unassigned — pending organizational adoption | Review for compliance with enterprise Secure Software Development Standard; approve for internal distribution |
+| **Developer / Owner** | Kaden Campbell | Feature development, bug fixes, dependency updates, CI/CD |
+| **Security reviewer** | Unassigned | Periodic `npm audit` review, CSP review, security-sensitive code review |
+| **IT / Cybersecurity partner** | Unassigned (pending org adoption) | Compliance review, approval for internal distribution |
 
-**Note:** This tool is currently maintained by a single developer outside corporate IT infrastructure. Enterprise adoption would require designating an IT/cybersecurity contact, establishing a formal vulnerability disclosure process, and onboarding the repository to corporate version control per REI's Secure Software Development Standard.
+This tool is currently maintained outside corporate IT infrastructure. Enterprise adoption would require an IT/cybersecurity contact, a formal vulnerability disclosure process, and onboarding to corporate version control per the Secure Software Development Standard.
 
 ---
 
 ## i. Significant Changes and Remediation
 
-### v2.0 — Professional Refactor (current)
+### v2.0 (current)
 
-Complete architectural rebuild addressing structural issues and confirmed logic bugs in v1.x.
+Full architectural rebuild. The original codebase was ~2,500 lines split across two files with no tests, no build step, and several logic bugs that produced incorrect break schedules.
 
 #### Structural Changes
 
-| Change | v1.x | v2.0 |
+| Area | v1.x | v2.0 |
 |---|---|---|
-| Architecture | 2,500 lines across 2 files, no separation of concerns | MVC: `models/`, `views/`, `controllers/`, `core/` |
-| Dependencies | CDN-loaded Bootstrap, Font Awesome, xlsx | npm packages, bundled by Vite — no runtime CDN calls |
-| Build pipeline | None — raw files served directly | Vite: tree-shaking, chunking, source maps, `dist/` only deployed |
+| Architecture | 2,500 lines across 2 files | MVC: `models/`, `views/`, `controllers/`, `core/` |
+| Dependencies | CDN-loaded Bootstrap, Font Awesome, xlsx | npm packages bundled by Vite, no runtime CDN calls |
+| Build pipeline | None, raw files served directly | Vite with tree-shaking, chunking, and `dist/`-only deployment |
 | Testing | None | 94 Vitest unit tests |
 | Static analysis | None | ESLint + `eslint-plugin-security` |
-| CI/CD | Deploy on push (no gates) | Test → lint → build → deploy (failing gate blocks deployment) |
+| CI/CD | Deploy on push with no gates | Test -> lint -> build -> deploy (any failure blocks deployment) |
 | Security | No CSP, CDN scripts, global namespace | CSP meta tag, `connect-src 'none'`, ES modules |
 
 #### Bug Remediation
 
-**Bug 1 — Split shift duration miscalculation (labor law compliance, critical)**
+**Bug 1 - Split shift duration miscalculation (CA labor law compliance)**
 
-*Symptom:* An employee working two separate segments (e.g., 7AM–11AM and 3PM–7PM, totalling 8 hours) was treated as working a 12-hour span from first clock-in to last clock-out. This caused the scheduler to assign an extra meal period and extra rest breaks in violation of California law.
+*Symptom:* An employee working 7AM-11AM and 3PM-7PM (8 hours of actual work) was treated as working a 12-hour span. This caused the scheduler to assign an extra meal period and extra rest breaks.
 
-*Root cause:* `shifts[name] = [Math.min(...starts), Math.max(...ends)]` — span instead of sum.
+*Root cause:* `shifts[name] = [Math.min(...starts), Math.max(...ends)]` used span instead of sum.
 
-*Fix:* `EmployeeSchedule.totalWorkMinutes` sums actual segment durations:
+*Fix:* `EmployeeSchedule.totalWorkMinutes` sums actual segment durations.
 ```js
 get totalWorkMinutes() {
     return this.segments.reduce((sum, s) => sum + (s.end - s.start), 0);
@@ -493,26 +494,26 @@ get totalWorkMinutes() {
 
 ---
 
-**Bug 2 — Break slot index collision (data integrity)**
+**Bug 2 - Break slot index collision (data integrity)**
 
-*Symptom:* For employees requiring both a second rest break and a second meal period, one silently overwrote the other in the output spreadsheet.
+*Symptom:* For employees needing both a second rest break and a second meal period, one silently overwrote the other in the output spreadsheet.
 
-*Root cause:* Breaks were stored as a positional array — `breaks[name][2]` was used for both the second rest break and the second meal period.
+*Root cause:* Breaks were stored as a positional array. `breaks[name][2]` was used for both the second rest break and the second meal period.
 
-*Fix:* Named break structure:
+*Fix:* Named break structure.
 ```js
 breaks[name] = { rest1: null, meal: null, rest2: null, rest3: null };
 ```
 
 ---
 
-**Bug 3 — Break placed inside unpaid gap (labor law compliance)**
+**Bug 3 - Break placed inside unpaid gap (CA labor law compliance)**
 
-*Symptom:* Rest breaks were occasionally scheduled during the unpaid gap between a split shift's two segments, placing the employee "on break" during time they were not clocked in.
+*Symptom:* Rest breaks were occasionally scheduled during the unpaid gap between a split shift's two segments.
 
-*Root cause:* Validity check used `shiftStart` and `shiftEnd` from the overall span rather than individual segment boundaries.
+*Root cause:* The validity check used `shiftStart` and `shiftEnd` from the overall span rather than individual segment boundaries.
 
-*Fix:* `isValidBreakWindow(time, duration)` requires the entire break to fall strictly within one segment:
+*Fix:* `isValidBreakWindow(time, duration)` requires the entire break to fall within a single segment.
 ```js
 isValidBreakWindow(time, duration) {
     return this.segments.some(s => time >= s.start && (time + duration) < s.end);
@@ -521,33 +522,33 @@ isValidBreakWindow(time, duration) {
 
 ---
 
-**Bug 4 — DOM-coupled scheduling logic (testability / reliability)**
+**Bug 4 - DOM-coupled scheduling logic (testability)**
 
-*Symptom:* `getOperatingHoursForDate()` read directly from `<input>` DOM elements. This made it impossible to unit test and caused silent failures if called before the DOM was fully rendered.
+*Symptom:* `getOperatingHoursForDate()` read directly from `<input>` DOM elements, making it untestable and fragile if called before the DOM was ready.
 
-*Fix:* Logic moved to `SettingsModel.getOperatingHoursForDate(dateString)`, which reads from in-memory model state populated by `StorageFacade`. No DOM access in the scheduling pipeline.
+*Fix:* Logic moved to `SettingsModel.getOperatingHoursForDate(dateString)`, which reads from in-memory model state. No DOM access in the scheduling pipeline.
 
 ---
 
-**Bug 5 — Duplicate function with incompatible signatures (reliability)**
+**Bug 5 - Duplicate function with incompatible signatures (reliability)**
 
-*Symptom:* `findGroupContaining` existed in two places with different parameter signatures. Callers in different parts of the codebase used whichever version was in scope, producing inconsistent results.
+*Symptom:* `findGroupContaining` existed in two places with different parameter signatures, producing inconsistent results depending on which version was in scope.
 
-*Fix:* Single canonical implementation in `src/core/helpers.js` with an explicit `groups` parameter required at all call sites.
+*Fix:* Single canonical implementation in `src/core/helpers.js` with an explicit `groups` parameter at all call sites.
 
 ---
 
 ## California Labor Law Reference
 
-| Hours Worked | Meal Periods Required | Rest Breaks Required |
+| Hours Worked | Meal Periods | Rest Breaks |
 |---|---|---|
 | < 3.5h (< 210 min) | 0 | 0 |
-| ≥ 3.5h, < 5h | 0 | 1 |
-| ≥ 5h (≥ 300 min) | 1 | 2 |
-| ≥ 10h (≥ 600 min) | 2 | 3 |
-| Split shift — gap ≥ 30 min | Gap satisfies first meal | Based on `totalWorkMinutes` sum |
+| >= 3.5h, < 5h | 0 | 1 |
+| >= 5h (>= 300 min) | 1 | 2 |
+| >= 10h (>= 600 min) | 2 | 3 |
+| Split shift with gap >= 30 min | Gap satisfies first meal | Based on `totalWorkMinutes` sum |
 
-Thresholds use strict California IWC Wage Order values: exactly 5 hours triggers the first meal period; exactly 10 hours triggers the second.
+Thresholds match strict California IWC Wage Order values. Exactly 5 hours triggers the first meal period. Exactly 10 hours triggers the second.
 
 ---
 
@@ -556,15 +557,15 @@ Thresholds use strict California IWC Wage Order values: exactly 5 hours triggers
 | Tool | Version | Purpose |
 |---|---|---|
 | **Vite** | ^5.0 | Build tool, dev server, ESM bundling |
-| **Vitest** | ^1.0 | Unit testing — ESM-native, shares Vite config |
+| **Vitest** | ^1.0 | Unit testing, ESM-native, shares Vite config |
 | **ESLint** | ^9.0 | Static analysis |
 | **eslint-plugin-security** | ^3.0 | Security-specific lint rules |
-| **Bootstrap** | ^4.6.2 | UI components (npm — no CDN) |
-| **Font Awesome** | ^6.5.0 | Icons (npm — no CDN) |
+| **Bootstrap** | ^4.6.2 | UI components via npm, no CDN |
+| **Font Awesome** | ^6.5.0 | Icons via npm, no CDN |
 | **xlsx (SheetJS)** | ^0.18.5 | Excel file parsing and generation |
 | **@rollup/plugin-inject** | ^5.0 | Provides jQuery global for Bootstrap 4 in ESM context |
-| **GitHub Actions** | — | CI/CD: test → lint → build → deploy |
-| **GitHub Pages** | — | Static hosting over HTTPS |
+| **GitHub Actions** | - | CI/CD: test -> lint -> build -> deploy |
+| **GitHub Pages** | - | Static hosting over HTTPS |
 
 ---
 
