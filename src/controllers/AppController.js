@@ -61,8 +61,6 @@ export class AppController {
         });
 
         root.addEventListener('settings:advanced-reset', () => {
-            const { DEFAULT_ADVANCED_SETTINGS } = /** @type {any} */ (window);
-            // Fall back to imported constant if window isn't set
             import('../core/constants.js').then(({ DEFAULT_ADVANCED_SETTINGS: defaults }) => {
                 settingsModel.setAdvancedSettings(defaults);
                 settingsView.renderAdvancedSettings(defaults);

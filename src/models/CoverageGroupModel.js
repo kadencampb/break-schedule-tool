@@ -1,5 +1,4 @@
 import { BaseModel } from './BaseModel.js';
-import { StorageFacade } from '../facades/StorageFacade.js';
 import { DEFAULT_GROUPS } from '../core/constants.js';
 
 /**

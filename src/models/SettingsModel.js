@@ -1,9 +1,7 @@
 import { BaseModel } from './BaseModel.js';
-import { StorageFacade } from '../facades/StorageFacade.js';
 import {
     DEFAULT_ADVANCED_SETTINGS,
-    DEFAULT_HOURS_BY_DAY,
-    DEFAULT_OPERATING_HOURS
+    DEFAULT_HOURS_BY_DAY
 } from '../core/constants.js';
 import { timeToMinutes } from '../core/helpers.js';
 
