@@ -211,7 +211,7 @@ flowchart TD
     B -- Yes --> D[Retrieve existing]
     C --> E[addSegment — sorted chronologically]
     D --> E
-    E --> F{totalWorkMinutes\n> 285 min?}
+    E --> F{totalWorkMinutes\n>= 300 min?}
     F -- No --> G[No meal required]
     F -- Yes --> H{gapSatisfiesMealPeriod?\ngap ≥ 30 min}
     H -- Yes --> I[Gap serves as meal —\nno break scheduled]
@@ -541,13 +541,13 @@ isValidBreakWindow(time, duration) {
 
 | Hours Worked | Meal Periods Required | Rest Breaks Required |
 |---|---|---|
-| < 3.5h | 0 | 0 |
-| 3.5h – 5h | 0 | 1 |
-| > 5h – 10h | 1 | 2 |
-| > 10h | 2 | 3 |
+| < 3.5h (< 210 min) | 0 | 0 |
+| ≥ 3.5h, < 5h | 0 | 1 |
+| ≥ 5h (≥ 300 min) | 1 | 2 |
+| ≥ 10h (≥ 600 min) | 2 | 3 |
 | Split shift — gap ≥ 30 min | Gap satisfies first meal | Based on `totalWorkMinutes` sum |
 
-*The first meal threshold uses 285 minutes (4h 45m) rather than 300 minutes to account for common early clock-in practices, consistent with the original tool's behavior.*
+Thresholds use strict California IWC Wage Order values: exactly 5 hours triggers the first meal period; exactly 10 hours triggers the second.
 
 ---
 

@@ -55,8 +55,32 @@ describe('EmployeeSchedule — standard shift', () => {
         expect(short.mealsRequired()).toBe(0);
     });
 
+    it('mealsRequired: exactly 4h59m (299 min) = 0 meals', () => {
+        const justUnder = new EmployeeSchedule('Bob');
+        justUnder.addSegment('Cashier', 'Cashier', 0, 299, 0);
+        expect(justUnder.mealsRequired()).toBe(0);
+    });
+
+    it('mealsRequired: exactly 5h (300 min) = 1 meal', () => {
+        const exactly5 = new EmployeeSchedule('Bob');
+        exactly5.addSegment('Cashier', 'Cashier', 0, 300, 0);
+        expect(exactly5.mealsRequired()).toBe(1);
+    });
+
     it('mealsRequired: 5h+ shift = 1 meal', () => {
-        expect(emp.mealsRequired()).toBe(1);
+        expect(emp.mealsRequired()).toBe(1); // 8.5h shift
+    });
+
+    it('mealsRequired: exactly 9h59m (599 min) = 1 meal', () => {
+        const justUnder10 = new EmployeeSchedule('Carol');
+        justUnder10.addSegment('Cashier', 'Cashier', 0, 599, 0);
+        expect(justUnder10.mealsRequired()).toBe(1);
+    });
+
+    it('mealsRequired: exactly 10h (600 min) = 2 meals', () => {
+        const exactly10 = new EmployeeSchedule('Carol');
+        exactly10.addSegment('Cashier', 'Cashier', 0, 600, 0);
+        expect(exactly10.mealsRequired()).toBe(2);
     });
 
     it('mealsRequired: 10h+ shift = 2 meals', () => {

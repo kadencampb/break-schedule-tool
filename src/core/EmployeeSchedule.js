@@ -128,19 +128,15 @@ export class EmployeeSchedule {
      * Determine how many meal periods are legally required.
      * Accounts for split shifts where the gap itself satisfies the first meal period.
      *
-     * California law:
-     * - > 5 hours worked: 1 meal period
-     * - > 10 hours worked: 2 meal periods
-     *
-     * Note: California uses a 5-hour threshold (300 min). The legacy code used 285 min
-     * (4h45m) to account for a common 7-min early clock-in practice; we preserve that
-     * tolerance here.
+     * California law (IWC Wage Orders):
+     * - >= 5 hours worked (300 min): 1 meal period
+     * - >= 10 hours worked (600 min): 2 meal periods
      */
     mealsRequired() {
         const work = this.totalWorkMinutes;
         let required = 0;
-        if (work > 285) required = 1;
-        if (work > 585) required = 2;
+        if (work >= 300) required = 1;
+        if (work >= 600) required = 2;
 
         // If the split gap satisfies the first meal, reduce required by 1
         // (but still need the second meal if totalWork > 9:45)
