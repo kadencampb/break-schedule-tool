@@ -106,9 +106,12 @@ export class EmployeeSchedule {
      */
     isValidBreakWindow(time, duration) {
         const breakEnd = time + duration;
-        // The break must end strictly before the segment boundary — a break that ends
-        // exactly at the segment end would return the employee into unpaid gap time.
-        return this.segments.some(s => time >= s.start && breakEnd < s.end);
+        // Both boundaries are strict: the break must not start at the segment boundary
+        // (employee would clock in and immediately go on break) and must not end at the
+        // segment boundary (employee would go from break directly to clock-out). Either
+        // condition means the employee cannot take a genuine off-duty rest period
+        // adjacent to a shift transition (Augustus v. ABM Security, 2016).
+        return this.segments.some(s => time > s.start && breakEnd < s.end);
     }
 
     /**

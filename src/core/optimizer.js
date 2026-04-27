@@ -110,13 +110,18 @@ export function findOptimalBreakTime(params) {
  */
 function clampToSegment(empSchedule, idealTime, duration) {
     for (const seg of empSchedule.segments) {
-        const latest = seg.end - duration;
-        if (idealTime >= seg.start && idealTime <= latest) return idealTime;
-        if (idealTime < seg.start) return seg.start;
-        if (idealTime > latest && latest >= seg.start) return latest;
+        // Earliest valid start is seg.start + 1 (not adjacent to start boundary).
+        // Latest valid start is seg.end - duration - 1 (break ends strictly before seg.end).
+        const earliest = seg.start + 1;
+        const latest   = seg.end - duration - 1;
+        if (latest < earliest) continue; // segment too short to fit any break
+        if (idealTime >= earliest && idealTime <= latest) return idealTime;
+        if (idealTime < earliest) return earliest;
+        if (idealTime > latest) return latest;
     }
-    // Last resort: start of first segment
-    return empSchedule.segments[0]?.start ?? idealTime;
+    // Last resort: first valid slot of first segment
+    const first = empSchedule.segments[0];
+    return first ? first.start + 1 : idealTime;
 }
 
 /** Deep clone the breaks object to avoid mutation during scoring */

@@ -49,6 +49,22 @@ function parseScheduleRows(rows, dataStart, shiftCol) {
 }
 
 /**
+ * Returns the scheduling flexibility window (in minutes) for an employee's first meal.
+ * Smaller = less flexible = should be scheduled first.
+ */
+function mealWindowSize(empSchedule) {
+    const MEAL_DURATION = 30;
+    const mealsNeeded = empSchedule.mealsRequired();
+    if (mealsNeeded === 0) return Infinity;
+    const netWork = empSchedule.totalWorkMinutes - mealsNeeded * MEAL_DURATION;
+    const latest  = empSchedule.workedTimeToClockTime(Math.min(MAX_WORK_BEFORE_MEAL, netWork))
+        ?? (empSchedule.overallStart + MAX_WORK_BEFORE_MEAL);
+    const earliest = empSchedule.workedTimeToClockTime(Math.max(0, netWork - mealsNeeded * MAX_WORK_BEFORE_MEAL))
+        ?? empSchedule.overallStart;
+    return latest - earliest;
+}
+
+/**
  * Schedule all breaks for the day.
  *
  * Returns a named-slot break structure:
@@ -212,7 +228,7 @@ export function scheduleBreaks(schedule, options = {}) {
         ].filter(t => t != null).sort((a, b) => a - b);
 
         const w1 = idealRestWorkedTime(1, empSchedule.totalWorkMinutes);
-        const idealRest1 = adjustForMeals(empSchedule.workedTimeToClockTime(w1) ?? empSchedule.overallStart + w1, scheduledMeals);
+        const idealRest1 = resolveIdealRestClock(w1, empSchedule, scheduledMeals);
         if (restCount >= 1) {
             breaks[name].rest1 = scheduleRestBreak(
                 name, empSchedule, idealRest1, 'rest1',
@@ -222,7 +238,7 @@ export function scheduleBreaks(schedule, options = {}) {
         }
 
         const w2 = idealRestWorkedTime(2, empSchedule.totalWorkMinutes);
-        const idealRest2 = adjustForMeals(empSchedule.workedTimeToClockTime(w2) ?? empSchedule.overallStart + w2, scheduledMeals);
+        const idealRest2 = resolveIdealRestClock(w2, empSchedule, scheduledMeals);
         if (restCount >= 2) {
             breaks[name].rest2 = scheduleRestBreak(
                 name, empSchedule, idealRest2, 'rest2',
@@ -232,7 +248,7 @@ export function scheduleBreaks(schedule, options = {}) {
         }
 
         const w3 = idealRestWorkedTime(3, empSchedule.totalWorkMinutes);
-        const idealRest3 = adjustForMeals(empSchedule.workedTimeToClockTime(w3) ?? empSchedule.overallStart + w3, scheduledMeals);
+        const idealRest3 = resolveIdealRestClock(w3, empSchedule, scheduledMeals);
         if (restCount >= 3) {
             breaks[name].rest3 = scheduleRestBreak(
                 name, empSchedule, idealRest3, 'rest3',
@@ -448,4 +464,36 @@ function adjustForMeals(rawTime, mealStarts) {
         if (t >= mealStart) t += 30;
     }
     return t;
+}
+
+/**
+ * Resolve the ideal rest break clock time from a worked-time offset.
+ *
+ * After mapping worked minutes to clock time and adjusting past scheduled meals,
+ * checks whether the result falls within an actual worked segment. If not (the ideal
+ * landed in a gap — e.g., a short first segment whose midpoint sits exactly at its
+ * end), re-anchors to the midpoint of the next segment. This matches the CA DLSE
+ * intent: the break belongs to whichever work period can actually accommodate it.
+ *
+ * Example: 2h + 4h split, break 1 ideal = 120 worked min = end of segment 1 (gap).
+ * Re-anchors to midpoint of segment 2 → 2h into the 4h segment.
+ *
+ * @param {number} workedMin - Net worked-time offset for this break
+ * @param {EmployeeSchedule} empSchedule
+ * @param {number[]} scheduledMeals - Sorted scheduled meal start times (clock time)
+ * @returns {number} Ideal clock time for the break
+ */
+function resolveIdealRestClock(workedMin, empSchedule, scheduledMeals) {
+    const rawClock = empSchedule.workedTimeToClockTime(workedMin) ?? (empSchedule.overallStart + workedMin);
+    const adjusted = adjustForMeals(rawClock, scheduledMeals);
+    if (!empSchedule.isWorkingAt(adjusted)) {
+        // Break was owed at this worked-time mark but the employee clocked out before it
+        // could be taken. When they return, the break is overdue — place it as soon as
+        // practicable: 15 min into the next segment (minimum non-boundary slot).
+        const nextSeg = empSchedule.segments.find(s => s.start > adjusted);
+        if (nextSeg) {
+            return nextSeg.start + 15;
+        }
+    }
+    return adjusted;
 }

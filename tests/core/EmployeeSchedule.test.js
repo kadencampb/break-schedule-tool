@@ -49,6 +49,23 @@ describe('EmployeeSchedule — standard shift', () => {
         expect(emp.isValidBreakWindow(h(16.25), 30)).toBe(false);
     });
 
+    it('isValidBreakWindow rejects a break adjacent to segment start (time == s.start)', () => {
+        // Augustus v. ABM Security (2016): break adjacent to a shift boundary is not a
+        // genuine off-duty rest period. Employee must have worked before taking the break.
+        expect(emp.isValidBreakWindow(h(8), 15)).toBe(false);  // starts exactly at 8AM
+    });
+
+    it('isValidBreakWindow rejects a break adjacent to segment end (breakEnd == s.end)', () => {
+        // Symmetric: employee would go directly from break to clock-out.
+        // 4:15PM start + 15 min = 4:30PM = segment end.
+        expect(emp.isValidBreakWindow(h(16.25), 15)).toBe(false);
+    });
+
+    it('isValidBreakWindow accepts a break one step inside both boundaries', () => {
+        expect(emp.isValidBreakWindow(h(8) + 1, 15)).toBe(true);   // 1 min after start
+        expect(emp.isValidBreakWindow(h(16.25) - 1, 15)).toBe(true); // 1 min before latest
+    });
+
     it('mealsRequired: short shift (3h) = 0 meals', () => {
         const short = new EmployeeSchedule('Bob');
         short.addSegment('Cashier', 'Cashier', h(9), h(12), 0);

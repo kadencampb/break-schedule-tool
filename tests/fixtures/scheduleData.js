@@ -111,6 +111,23 @@ export const MEAL_GAP_SCHEDULE = [
     [null,      'Cashier', 'Meal Gap Employee', '3:15PM-6:30PM'],  // second segment: 195 min
 ];
 
+/**
+ * 2h + 4h split shift: total 6h → 1 rest break, no scheduled meal (gap satisfies).
+ * "Short First Employee" works 8AM–10AM then 2PM–6PM.
+ * Gap = 4h → satisfies meal period. Rest break ideal anchors to midpoint of segment 2
+ * (the 4h period): 2PM + 2h = 4PM.
+ */
+export const SHORT_FIRST_SPLIT_SCHEDULE = [
+    ['Date: 2024-01-15'],
+    ['Location: Test Store'],
+    ['Dept', 'Job', 'Name'],
+    [], [], [],
+    ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'],
+    ['Cashier', null,      null,                    null],
+    [null,      'Cashier', 'Short First Employee',  '8:00AM-10:00AM'], // segment 1: 2h
+    [null,      'Cashier', 'Short First Employee',  '2:00PM-6:00PM'],  // segment 2: 4h
+];
+
 /** Operating hours for testing (9 AM – 9 PM) */
 export const TEST_OPERATING_HOURS = {
     startTime: 9 * 60,

@@ -6,6 +6,7 @@ import {
     LONG_SHIFT_SCHEDULE,
     SHORT_SHIFT_SCHEDULE,
     MEAL_GAP_SCHEDULE,
+    SHORT_FIRST_SPLIT_SCHEDULE,
     TEST_GROUPS,
     TEST_ADV_SETTINGS,
     TEST_OPERATING_HOURS
@@ -205,6 +206,43 @@ describe('Break placement — continuous shift with meal gap', () => {
         const schedule = employeeSchedules.get('Meal Gap Employee');
         if (emp.rest1 != null) expect(schedule.isValidBreakWindow(emp.rest1, 15)).toBe(true);
         if (emp.rest2 != null) expect(schedule.isValidBreakWindow(emp.rest2, 15)).toBe(true);
+    });
+});
+
+// -------------------------------------------------------------------------
+// Short first segment — 2h + 4h split
+// -------------------------------------------------------------------------
+
+describe('Split shift — short first segment (2h + 4h)', () => {
+    // Short First Employee: 8AM–10AM (2h) + 2PM–6PM (4h), 4h gap satisfies meal.
+    // Total = 6h = 360 min → 1 rest break, no scheduled meal.
+    // Break owed at 120 worked min = end of segment 1 (overdue). Ideal = seg2.start + 15
+    // = 2:15PM (855). Optimizer window [855-60, 855+45] = [795, 900], clipped to [855, 900].
+
+    it('gets exactly one rest break and no meal', () => {
+        const { breaks } = scheduleBreaks(SHORT_FIRST_SPLIT_SCHEDULE, OPTIONS);
+        const emp = breaks['Short First Employee'];
+        expect(emp.rest1).not.toBeNull();
+        expect(emp.meal).toBeNull();
+        expect(emp.rest2).toBeNull();
+    });
+
+    it('rest break falls within segment 2, not the gap or segment 1', () => {
+        const { breaks, employeeSchedules } = scheduleBreaks(SHORT_FIRST_SPLIT_SCHEDULE, OPTIONS);
+        const emp = breaks['Short First Employee'];
+        const schedule = employeeSchedules.get('Short First Employee');
+        expect(schedule.isValidBreakWindow(emp.rest1, 15)).toBe(true);
+        // Must be in segment 2 (2PM = 840), not segment 1 (ends at 10AM = 600)
+        expect(emp.rest1).toBeGreaterThanOrEqual(840);
+    });
+
+    it('rest break is placed as soon as practicable in segment 2 (ideal 2:15PM)', () => {
+        const { breaks } = scheduleBreaks(SHORT_FIRST_SPLIT_SCHEDULE, OPTIONS);
+        const emp = breaks['Short First Employee'];
+        // Break overdue from end of segment 1; ideal = 2:15PM (855).
+        // Valid window within segment 2: [2:15PM (855), 3:00PM (900)]
+        expect(emp.rest1).toBeGreaterThanOrEqual(855); // 2:15PM (earliest in window)
+        expect(emp.rest1).toBeLessThanOrEqual(900);    // 3:00PM (latest in window)
     });
 });
 
