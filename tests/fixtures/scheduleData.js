@@ -85,10 +85,10 @@ export const TEST_GROUPS = [
     }
 ];
 
-/** Advanced settings for testing */
+/** Advanced settings for testing — matches DEFAULT_ADVANCED_SETTINGS */
 export const TEST_ADV_SETTINGS = {
-    maxEarly: 15,
-    maxDelay: 30,
+    maxEarly: 60,
+    maxDelay: 45,
     deptWeightMultiplier: 4,
     proximityWeight: 1
 };

@@ -149,13 +149,31 @@ export const DEFAULT_GROUPS = [
     }
 ];
 
-/** Default advanced scheduling settings */
+/**
+ * Default advanced scheduling settings.
+ *
+ * maxEarly / maxDelay apply to REST BREAKS only. Meal period timing is determined
+ * dynamically from the CA DLSE 4h45m constraint and is not user-configurable here.
+ *
+ * The asymmetric window [-60, +45] keeps rest breaks before the 3-hour mark of each
+ * 4-hour work period, which ensures the break fits within even the smallest valid
+ * major fraction (just over 2 hours worked).
+ */
 export const DEFAULT_ADVANCED_SETTINGS = {
-    maxEarly: 15,
-    maxDelay: 30,
+    maxEarly: 60,
+    maxDelay: 45,
     deptWeightMultiplier: 4,
     proximityWeight: 1
 };
+
+/**
+ * CA DLSE meal violation threshold in minutes.
+ * An employee cannot work more than 5 hours (300 min) continuously without a meal.
+ * This constant is set to 285 (4h 45m) as the latest safe start — scheduling the meal
+ * here means the employee returns after 5h15m of shift time but only 4h45m of worked
+ * time, leaving a compliance buffer before the 5h worked trigger.
+ */
+export const MAX_WORK_BEFORE_MEAL = 285;
 
 /** Default operating hours (10 AM – 9 PM) */
 export const DEFAULT_OPERATING_HOURS = {

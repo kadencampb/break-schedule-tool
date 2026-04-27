@@ -103,20 +103,23 @@ describe('Break placement', () => {
         }
     });
 
-    it('meal break is scheduled around the 4-hour mark', () => {
+    it('meal is scheduled as late as safely possible (4h45m worked mark)', () => {
         const { breaks } = scheduleBreaks(BASIC_SCHEDULE, OPTIONS);
         const alice = breaks['Alice Smith'];
-        // Ideal is 8:00AM + 4h = 12:00PM (720 min). Allow ±30min
-        expect(alice.meal).toBeGreaterThanOrEqual(690);
-        expect(alice.meal).toBeLessThanOrEqual(750);
+        // Alice: 8AM-4:30PM (510 min). netWork = 480. Latest safe start = 480-285=195 worked
+        // min from start → 8AM + 285 worked min = 12:45PM (765). Earliest = 8AM + 195 = 11:15AM (675).
+        // No coverage groups → placed exactly at ideal (latest = 765 = 12:45PM).
+        expect(alice.meal).toBeGreaterThanOrEqual(675); // earliest: 11:15AM
+        expect(alice.meal).toBeLessThanOrEqual(765);    // latest: 12:45PM
     });
 
-    it('first rest break is scheduled around the 2-hour mark', () => {
+    it('first rest break is near the 2-hour worked mark (pausing for meal)', () => {
         const { breaks } = scheduleBreaks(BASIC_SCHEDULE, OPTIONS);
         const alice = breaks['Alice Smith'];
-        // Ideal is 8:00AM + 2h = 10:00AM (600 min). Allow ±30min
-        expect(alice.rest1).toBeGreaterThanOrEqual(570);
-        expect(alice.rest1).toBeLessThanOrEqual(630);
+        // Rest 1 ideal: 120 net worked min from 8AM = 10:00AM (600). Meal is at 12:45PM,
+        // which comes after rest 1, so no meal adjustment. Allow ±60 min (new maxEarly/maxDelay).
+        expect(alice.rest1).toBeGreaterThanOrEqual(540); // 9:00AM
+        expect(alice.rest1).toBeLessThanOrEqual(660);    // 11:00AM
     });
 });
 

@@ -1,4 +1,4 @@
-import { DEFAULT_GROUPS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_OPERATING_HOURS } from './constants.js';
+import { DEFAULT_GROUPS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_OPERATING_HOURS, MAX_WORK_BEFORE_MEAL } from './constants.js';
 import { formatName, parseShiftInterval, findGroupContaining } from './helpers.js';
 import { minutesToTime } from './helpers.js';
 import { EmployeeSchedule } from './EmployeeSchedule.js';
@@ -102,6 +102,19 @@ export function scheduleBreaks(schedule, options = {}) {
     // =========================================================
     // STEP 1: MEAL PERIODS
     // =========================================================
+    //
+    // Meal timing is dynamic — derived from the CA DLSE 4h45m constraint rather than
+    // a fixed wall-clock offset. The window for each meal is:
+    //
+    //   earliest start = workedTimeToClockTime(max(0, netWork - (N-k+1) * MAX_WORK_BEFORE_MEAL))
+    //                    + (k-1) * MEAL_DURATION
+    //   latest start   = workedTimeToClockTime(min(k * MAX_WORK_BEFORE_MEAL, netWork))
+    //                    + (k-1) * MEAL_DURATION
+    //
+    // where k = meal index (1-based), N = total meals needed, netWork = totalWorkMinutes - N * 30.
+    //
+    // Ideal is the LATEST valid start — this minimizes the risk of a post-meal violation
+    // for shifts approaching the next meal threshold (e.g., an 8.5h shift approaching 10h).
 
     for (const name of employeeOrder) {
         const empSchedule = employeeSchedules.get(name);
@@ -112,47 +125,78 @@ export function scheduleBreaks(schedule, options = {}) {
         const { dept, job: subdept } = empSchedule.primaryDept();
         const group = findGroupContaining(dept, subdept, groups);
 
-        // Ideal meal time: 4 hours into the first segment
-        const idealMealTime = empSchedule.overallStart + 240;
+        const MEAL_DURATION = 30;
+        // Net worked time = total segment minutes minus all expected meal periods
+        const netWork = empSchedule.totalWorkMinutes - mealsNeeded * MEAL_DURATION;
+
+        // --- First meal (k=1) ---
+        const meal1Latest = (empSchedule.workedTimeToClockTime(
+            Math.min(MAX_WORK_BEFORE_MEAL, netWork)
+        ) ?? (empSchedule.overallStart + MAX_WORK_BEFORE_MEAL));
+
+        const meal1Earliest = (empSchedule.workedTimeToClockTime(
+            Math.max(0, netWork - mealsNeeded * MAX_WORK_BEFORE_MEAL)
+        ) ?? empSchedule.overallStart);
+
+        // Ideal = latest: delay as long as possible to minimize post-meal violation risk
+        const idealMeal1 = meal1Latest;
+        const meal1MaxEarly = Math.max(0, meal1Latest - meal1Earliest);
+
+        // Meal optimizer ignores maxEarly/maxDelay from advSettings — uses the computed window.
+        // maxDelay = 0: going past the latest safe slot could cause a meal violation.
+        const mealAdvSettings = { ...advSettings, maxEarly: meal1MaxEarly, maxDelay: 0 };
 
         if (!group) {
-            // No coverage optimization — schedule at ideal time, clamped to a valid segment
-            const mealTime = empSchedule.isValidBreakWindow(idealMealTime, 30)
-                ? idealMealTime
-                : empSchedule.overallStart + 240;
+            const mealTime = empSchedule.isValidBreakWindow(idealMeal1, MEAL_DURATION)
+                ? idealMeal1
+                : meal1Earliest;
             breaks[name].meal = mealTime;
         } else {
             const { bestTime } = findOptimalBreakTime({
-                empName: name,
-                empSchedule,
-                idealTime: idealMealTime,
-                breakDuration: 30,
+                empName: name, empSchedule,
+                idealTime: idealMeal1,
+                breakDuration: MEAL_DURATION,
                 breakSlot: 'meal',
                 dept, subdept, group, breaks,
-                employeeSchedules,
-                startOfDay, endOfDay,
-                advSettings, log
+                employeeSchedules, startOfDay, endOfDay,
+                advSettings: mealAdvSettings, log
             });
             breaks[name].meal = bestTime;
 
-            if (bestTime !== idealMealTime) {
-                log(`[MEAL OPTIMIZE] ${name} (${subdept}): ${minutesToTime(idealMealTime)} → ${minutesToTime(bestTime)}`);
+            if (bestTime !== idealMeal1) {
+                log(`[MEAL OPTIMIZE] ${name} (${subdept}): ${minutesToTime(idealMeal1)} → ${minutesToTime(bestTime)}`);
             }
         }
 
-        // Second meal period (for shifts > 9:45 total work)
+        // --- Second meal (k=2) for shifts >= 10h ---
         if (mealsNeeded >= 2) {
-            // Schedule 4 hours after the first meal
-            breaks[name].rest3 = null; // reset — rest3 slot is used separately below
-            // Second meal uses a dedicated tracking field; we insert it after rest breaks
-            // to avoid collisions. Stored temporarily in a side channel.
-            empSchedule._secondMealTime = empSchedule.overallStart + 480;
+            const meal2Latest = (empSchedule.workedTimeToClockTime(
+                Math.min(2 * MAX_WORK_BEFORE_MEAL, netWork)
+            ) ?? (empSchedule.overallStart + 2 * MAX_WORK_BEFORE_MEAL)) + MEAL_DURATION;
+
+            const meal2Earliest = (empSchedule.workedTimeToClockTime(
+                Math.max(0, netWork - MAX_WORK_BEFORE_MEAL)
+            ) ?? empSchedule.overallStart) + MEAL_DURATION;
+
+            breaks[name].rest3 = null; // reset — rest3 slot used below for third rest break
+            empSchedule._secondMealTime = meal2Latest; // ideal = latest safe slot
+            empSchedule._secondMealMaxEarly = Math.max(0, meal2Latest - meal2Earliest);
         }
     }
 
     // =========================================================
     // STEP 2: REST BREAKS
     // =========================================================
+    //
+    // Ideal rest break times are the 2-hour midpoints of each 4-hour worked period,
+    // computed in NET WORKED TIME (pausing during meal periods and natural shift gaps).
+    //
+    //   Break n ideal: midpoint of the nth 4-hour work period (or major fraction)
+    //   computed in net worked time, then mapped to clock time via workedTimeToClockTime.
+    //
+    // workedTimeToClockTime already handles natural gaps (split shifts). For SCHEDULED
+    // meals (continuous shifts), the raw time is shifted forward by 30 min for each
+    // scheduled meal that falls before the computed ideal.
 
     for (const name of employeeOrder) {
         const empSchedule = employeeSchedules.get(name);
@@ -163,13 +207,14 @@ export function scheduleBreaks(schedule, options = {}) {
         const { dept, job: subdept } = empSchedule.primaryDept();
         const group = findGroupContaining(dept, subdept, groups);
 
-        // Ideal rest break times are the 2-hour midpoints of each 4-hour worked period,
-        // mapped to wall clock time using the running worked-time total.
-        // This correctly accounts for meal gaps: the clock pauses during unpaid time.
-        //   Break 1: 120 net worked minutes from clock-in (midpoint of period 1)
-        //   Break 2: 360 net worked minutes from clock-in (midpoint of period 2)
-        //   Break 3: 600 net worked minutes from clock-in (midpoint of period 3)
-        const idealRest1 = empSchedule.workedTimeToClockTime(120) ?? empSchedule.overallStart + 120;
+        // Collect scheduled meal start times (in clock time) for the adjustment step
+        const scheduledMeals = [
+            breaks[name].meal,
+            empSchedule._secondMealTime ?? null
+        ].filter(t => t != null).sort((a, b) => a - b);
+
+        const w1 = idealRestWorkedTime(1, empSchedule.totalWorkMinutes);
+        const idealRest1 = adjustForMeals(empSchedule.workedTimeToClockTime(w1) ?? empSchedule.overallStart + w1, scheduledMeals);
         if (restCount >= 1) {
             breaks[name].rest1 = scheduleRestBreak(
                 name, empSchedule, idealRest1, 'rest1',
@@ -178,7 +223,8 @@ export function scheduleBreaks(schedule, options = {}) {
             );
         }
 
-        const idealRest2 = empSchedule.workedTimeToClockTime(360) ?? empSchedule.overallStart + 360;
+        const w2 = idealRestWorkedTime(2, empSchedule.totalWorkMinutes);
+        const idealRest2 = adjustForMeals(empSchedule.workedTimeToClockTime(w2) ?? empSchedule.overallStart + w2, scheduledMeals);
         if (restCount >= 2) {
             breaks[name].rest2 = scheduleRestBreak(
                 name, empSchedule, idealRest2, 'rest2',
@@ -187,7 +233,8 @@ export function scheduleBreaks(schedule, options = {}) {
             );
         }
 
-        const idealRest3 = empSchedule.workedTimeToClockTime(600) ?? empSchedule.overallStart + 600;
+        const w3 = idealRestWorkedTime(3, empSchedule.totalWorkMinutes);
+        const idealRest3 = adjustForMeals(empSchedule.workedTimeToClockTime(w3) ?? empSchedule.overallStart + w3, scheduledMeals);
         if (restCount >= 3) {
             breaks[name].rest3 = scheduleRestBreak(
                 name, empSchedule, idealRest3, 'rest3',
@@ -355,4 +402,52 @@ function deepCloneBreaksObj(breaks) {
         clone[name] = { ...slots };
     }
     return clone;
+}
+
+/**
+ * Compute the ideal worked-time offset (in minutes from shift start) for rest break
+ * number `periodIndex` (1-based).
+ *
+ * Each 4-hour work period has its rest break at the MIDPOINT of that period. For a
+ * full 4-hour period this is 2h (120 min) in. For a partial final period (a "major
+ * fraction" of 4 hours, i.e., > 2h), this is the midpoint of that shorter window.
+ *
+ * Examples:
+ *   8h shift (480 min): period 1 midpoint = 120, period 2 midpoint = 240+120 = 360
+ *   6h01m shift (361 min): period 1 midpoint = 120, period 2 midpoint = 240+60.5 ≈ 300
+ *   11h shift (660 min): period 1 = 120, period 2 = 360, period 3 = 480+90 = 570
+ *
+ * Result is rounded to the nearest 15-minute interval (optimizer step size).
+ *
+ * @param {number} periodIndex - 1-based rest break number
+ * @param {number} totalWorkMinutes - Total scheduled segment time (not deducting meals)
+ * @returns {number} Ideal worked-time offset in minutes
+ */
+function idealRestWorkedTime(periodIndex, totalWorkMinutes) {
+    const periodStart = (periodIndex - 1) * 240;
+    const periodLength = Math.min(240, totalWorkMinutes - periodStart);
+    const midpoint = periodStart + periodLength / 2;
+    return Math.round(midpoint / 15) * 15;
+}
+
+/**
+ * Shift a raw worked-time clock time forward by 30 minutes for each scheduled meal
+ * that starts before it. This accounts for the fact that workedTimeToClockTime maps
+ * net worked minutes to clock time based on the original segments (ignoring scheduled
+ * meals). For each meal that interrupts the worked-time timeline before the target
+ * point, the actual clock time is 30 minutes later than the raw mapping suggests.
+ *
+ * Natural shift gaps are already handled by workedTimeToClockTime directly (it skips
+ * them). Only SCHEDULED meals (placed by Step 1) require this correction.
+ *
+ * @param {number} rawTime - Clock time from workedTimeToClockTime
+ * @param {number[]} mealStarts - Scheduled meal start times in ascending order
+ * @returns {number} Adjusted clock time
+ */
+function adjustForMeals(rawTime, mealStarts) {
+    let t = rawTime;
+    for (const mealStart of mealStarts) {
+        if (t >= mealStart) t += 30;
+    }
+    return t;
 }
