@@ -116,11 +116,16 @@ export function scheduleBreaks(schedule, options = {}) {
     // Ideal is the LATEST valid start — this minimizes the risk of a post-meal violation
     // for shifts approaching the next meal threshold (e.g., an 8.5h shift approaching 10h).
 
-    for (const name of employeeOrder) {
+    // Schedule meals in ascending window-size order: employees with the least scheduling
+    // flexibility (approaching 10h, single valid slot) are locked in first. Employees
+    // with more room can then adjust around them for better coverage staggering.
+    const mealOrder = employeeOrder
+        .filter(n => employeeSchedules.get(n).mealsRequired() > 0)
+        .sort((a, b) => mealWindowSize(employeeSchedules.get(a)) - mealWindowSize(employeeSchedules.get(b)));
+
+    for (const name of mealOrder) {
         const empSchedule = employeeSchedules.get(name);
         const mealsNeeded = empSchedule.mealsRequired();
-
-        if (mealsNeeded === 0) continue;
 
         const { dept, job: subdept } = empSchedule.primaryDept();
         const group = findGroupContaining(dept, subdept, groups);
@@ -138,34 +143,27 @@ export function scheduleBreaks(schedule, options = {}) {
             Math.max(0, netWork - mealsNeeded * MAX_WORK_BEFORE_MEAL)
         ) ?? empSchedule.overallStart);
 
-        // Ideal = latest: delay as long as possible to minimize post-meal violation risk
+        // Ideal = latest: delay as long as possible to minimize post-meal violation risk.
+        // maxDelay = 0 so the optimizer never goes past the latest safe slot.
+        // The optimizer always runs (even without a coverage group) so dept-level
+        // staggering applies — employees sharing a dept won't all take meals at once.
         const idealMeal1 = meal1Latest;
         const meal1MaxEarly = Math.max(0, meal1Latest - meal1Earliest);
-
-        // Meal optimizer ignores maxEarly/maxDelay from advSettings — uses the computed window.
-        // maxDelay = 0: going past the latest safe slot could cause a meal violation.
         const mealAdvSettings = { ...advSettings, maxEarly: meal1MaxEarly, maxDelay: 0 };
 
-        if (!group) {
-            const mealTime = empSchedule.isValidBreakWindow(idealMeal1, MEAL_DURATION)
-                ? idealMeal1
-                : meal1Earliest;
-            breaks[name].meal = mealTime;
-        } else {
-            const { bestTime } = findOptimalBreakTime({
-                empName: name, empSchedule,
-                idealTime: idealMeal1,
-                breakDuration: MEAL_DURATION,
-                breakSlot: 'meal',
-                dept, subdept, group, breaks,
-                employeeSchedules, startOfDay, endOfDay,
-                advSettings: mealAdvSettings, log
-            });
-            breaks[name].meal = bestTime;
+        const { bestTime: meal1Time } = findOptimalBreakTime({
+            empName: name, empSchedule,
+            idealTime: idealMeal1,
+            breakDuration: MEAL_DURATION,
+            breakSlot: 'meal',
+            dept, subdept, group, breaks,
+            employeeSchedules, startOfDay, endOfDay,
+            advSettings: mealAdvSettings, log
+        });
+        breaks[name].meal = meal1Time;
 
-            if (bestTime !== idealMeal1) {
-                log(`[MEAL OPTIMIZE] ${name} (${subdept}): ${minutesToTime(idealMeal1)} → ${minutesToTime(bestTime)}`);
-            }
+        if (meal1Time !== idealMeal1) {
+            log(`[MEAL OPTIMIZE] ${name} (${subdept}): ${minutesToTime(idealMeal1)} → ${minutesToTime(meal1Time)}`);
         }
 
         // --- Second meal (k=2) for shifts >= 10h ---
