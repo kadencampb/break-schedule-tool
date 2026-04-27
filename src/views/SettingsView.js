@@ -29,7 +29,7 @@ export class SettingsView extends BaseView {
      * @param {{ maxEarly, maxDelay, deptWeightMultiplier, proximityWeight }} settings
      */
     renderAdvancedSettings(settings) {
-        const fields = ['maxEarly', 'maxDelay', 'deptWeightMultiplier', 'proximityWeight'];
+        const fields = ['maxEarly', 'maxDelay', 'deptWeightMultiplier', 'proximityWeight', 'idealMealOffset'];
         for (const field of fields) {
             const input = this.el(field);
             if (input) {
@@ -78,7 +78,7 @@ export class SettingsView extends BaseView {
 
     /** @private */
     _bindAdvancedInputs(root) {
-        const fields = ['maxEarly', 'maxDelay', 'deptWeightMultiplier', 'proximityWeight'];
+        const fields = ['maxEarly', 'maxDelay', 'deptWeightMultiplier', 'proximityWeight', 'idealMealOffset'];
         for (const field of fields) {
             const input = this.el(field);
             if (!input) continue;
@@ -141,7 +141,8 @@ export class SettingsView extends BaseView {
             maxEarly:             parseInt(this.el('maxEarly')?.value             ?? DEFAULT_ADVANCED_SETTINGS.maxEarly,             10),
             maxDelay:             parseInt(this.el('maxDelay')?.value             ?? DEFAULT_ADVANCED_SETTINGS.maxDelay,             10),
             deptWeightMultiplier: parseInt(this.el('deptWeightMultiplier')?.value ?? DEFAULT_ADVANCED_SETTINGS.deptWeightMultiplier, 10),
-            proximityWeight:      parseInt(this.el('proximityWeight')?.value      ?? DEFAULT_ADVANCED_SETTINGS.proximityWeight,      10)
+            proximityWeight:      parseInt(this.el('proximityWeight')?.value      ?? DEFAULT_ADVANCED_SETTINGS.proximityWeight,      10),
+            idealMealOffset:      parseInt(this.el('idealMealOffset')?.value      ?? DEFAULT_ADVANCED_SETTINGS.idealMealOffset,      10)
         };
     }
 }

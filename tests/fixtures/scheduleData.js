@@ -1,5 +1,5 @@
 /**
- * Synthetic schedule fixtures — no real employee names or data.
+ * Synthetic schedule fixtures
  * These mirror the row format produced by XLSX.utils.sheet_to_json after column D is removed:
  * [dept, job, name, shiftStr, ...]
  *
@@ -14,13 +14,13 @@ export const BASIC_SCHEDULE = [
     [],                      // row 3
     [],                      // row 4
     [],                      // row 5
-    ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'], // row 6 — header
+    ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'], // row 6 header
     // --- Employee rows ---
-    ['Cashier', null,       null,           null], // row 7 — dept header
+    ['Cashier', null,       null,           null], // row 7 dept header
     [null,      'Cashier',  'Alice Smith',  '8:00AM-4:30PM'], // row 8 — 8.5h shift
     [null,      'Cashier',  'Bob Jones',    '9:00AM-3:00PM'], // row 9 — 6h shift (1 rest under strict DLSE)
     [null,      'Cashier',  'Carol Davis',  '12:00PM-6:00PM'], // row 10 — 6h shift (1 rest under strict DLSE)
-    ['Clothing', null,      null,           null], // row 11 — dept header
+    ['Clothing', null,      null,           null], // row 11 dept header
     [null,      'Clothing', 'Dave Wilson',  '10:00AM-2:00PM'], // row 12 — 4h shift
     [null,      'Clothing', 'Eve Brown',    '7:00AM-3:30PM'], // row 13 — 8.5h shift
 ];
@@ -52,8 +52,8 @@ export const LONG_SHIFT_SCHEDULE = [
     [], [], [],
     ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'],
     ['Cashier', null,      null,                null],
-    [null,      'Cashier', 'Henry Clark',  '6:00AM-5:00PM'], // 11h shift — needs 2 meals, 3 rests
-    [null,      'Cashier', 'Iris Martin',  '8:00AM-4:30PM'], // 8.5h — needs 1 meal, 2 rests
+    [null,      'Cashier', 'Henry Clark',  '6:00AM-5:00PM'], // 11h shift (needs 2 meals, 3 rests)
+    [null,      'Cashier', 'Iris Martin',  '8:00AM-4:30PM'], // 8.5h (needs 1 meal, 2 rests)
 ];
 
 /**
@@ -90,7 +90,8 @@ export const TEST_ADV_SETTINGS = {
     maxEarly: 60,
     maxDelay: 45,
     deptWeightMultiplier: 4,
-    proximityWeight: 1
+    proximityWeight: 1,
+    idealMealOffset: 270
 };
 
 /**
@@ -114,8 +115,9 @@ export const MEAL_GAP_SCHEDULE = [
 /**
  * 2h + 4h split shift: total 6h → 1 rest break, no scheduled meal (gap satisfies).
  * "Short First Employee" works 8AM–10AM then 2PM–6PM.
- * Gap = 4h → satisfies meal period. Rest break ideal anchors to midpoint of segment 2
- * (the 4h period): 2PM + 2h = 4PM.
+ * Gap = 4h → satisfies meal period. Period 1 [0,240) worked overlaps seg1 entirely
+ * (length 120) and seg2 first half (length 120). Tied → later wins → midpoint of
+ * seg2 footprint piece [2PM, 4PM] = 3:00PM.
  */
 export const SHORT_FIRST_SPLIT_SCHEDULE = [
     ['Date: 2024-01-15'],

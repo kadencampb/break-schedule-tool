@@ -152,18 +152,25 @@ export const DEFAULT_GROUPS = [
 /**
  * Default advanced scheduling settings.
  *
- * maxEarly / maxDelay apply to REST BREAKS only. Meal period timing is determined
- * dynamically from the CA DLSE 4h45m constraint and is not user-configurable here.
+ * maxEarly / maxDelay apply to REST BREAKS only. Meal period timing is constrained
+ * by the CA DLSE 4h45m legal window, but the preferred placement within that window
+ * is configurable via idealMealOffset.
  *
  * The asymmetric window [-60, +45] keeps rest breaks before the 3-hour mark of each
  * 4-hour work period, which ensures the break fits within even the smallest valid
  * major fraction (just over 2 hours worked).
+ *
+ * idealMealOffset is the preferred worked-time offset (in minutes from clock-in) for
+ * the first meal period. The actual placement is clamped to the legal window, so
+ * shifts approaching 10 hours may still land at the 4h45m mark even if a shorter
+ * preference is configured. Allowed values: 210 (3:30) – 285 (4:45) in 15-min steps.
  */
 export const DEFAULT_ADVANCED_SETTINGS = {
     maxEarly: 60,
     maxDelay: 45,
     deptWeightMultiplier: 4,
-    proximityWeight: 1
+    proximityWeight: 1,
+    idealMealOffset: 270
 };
 
 /**

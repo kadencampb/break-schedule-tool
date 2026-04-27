@@ -139,6 +139,8 @@ export function scheduleBreaks(schedule, options = {}) {
         .filter(n => employeeSchedules.get(n).mealsRequired() > 0)
         .sort((a, b) => mealWindowSize(employeeSchedules.get(a)) - mealWindowSize(employeeSchedules.get(b)));
 
+    const idealMealOffset = advSettings.idealMealOffset ?? DEFAULT_ADVANCED_SETTINGS.idealMealOffset;
+
     for (const name of mealOrder) {
         const empSchedule = employeeSchedules.get(name);
         const mealsNeeded = empSchedule.mealsRequired();
@@ -159,13 +161,19 @@ export function scheduleBreaks(schedule, options = {}) {
             Math.max(0, netWork - mealsNeeded * MAX_WORK_BEFORE_MEAL)
         ) ?? empSchedule.overallStart);
 
-        // Ideal = latest: delay as long as possible to minimize post-meal violation risk.
-        // maxDelay = 0 so the optimizer never goes past the latest safe slot.
-        // The optimizer always runs (even without a coverage group) so dept-level
-        // staggering applies — employees sharing a dept won't all take meals at once.
-        const idealMeal1 = meal1Latest;
-        const meal1MaxEarly = Math.max(0, meal1Latest - meal1Earliest);
-        const mealAdvSettings = { ...advSettings, maxEarly: meal1MaxEarly, maxDelay: 0 };
+        // Preferred = idealMealOffset worked min from clock-in, clamped to the legal
+        // window [meal1Earliest, meal1Latest]. For shifts approaching 10h, the legal
+        // window collapses toward 4h45m and the clamp pushes the preference back.
+        // The optimizer is allowed to move earlier within the legal window for
+        // coverage staggering, but never past the latest safe slot.
+        const meal1Preferred = (empSchedule.workedTimeToClockTime(
+            Math.min(idealMealOffset, netWork)
+        ) ?? (empSchedule.overallStart + idealMealOffset));
+        const idealMeal1 = Math.max(meal1Earliest, Math.min(meal1Latest, meal1Preferred));
+
+        const meal1MaxEarly = Math.max(0, idealMeal1 - meal1Earliest);
+        const meal1MaxDelay = Math.max(0, meal1Latest - idealMeal1);
+        const mealAdvSettings = { ...advSettings, maxEarly: meal1MaxEarly, maxDelay: meal1MaxDelay };
 
         const { bestTime: meal1Time } = findOptimalBreakTime({
             empName: name, empSchedule,
@@ -192,9 +200,16 @@ export function scheduleBreaks(schedule, options = {}) {
                 Math.max(0, netWork - MAX_WORK_BEFORE_MEAL)
             ) ?? empSchedule.overallStart) + MEAL_DURATION;
 
+            // Preferred placement: idealMealOffset of additional worked time after the
+            // first meal, i.e., 2 * idealMealOffset worked min from clock-in.
+            const meal2Preferred = (empSchedule.workedTimeToClockTime(
+                Math.min(2 * idealMealOffset, netWork)
+            ) ?? (empSchedule.overallStart + 2 * idealMealOffset)) + MEAL_DURATION;
+            const idealMeal2 = Math.max(meal2Earliest, Math.min(meal2Latest, meal2Preferred));
+
             breaks[name].rest3 = null; // reset — rest3 slot used below for third rest break
-            empSchedule._secondMealTime = meal2Latest; // ideal = latest safe slot
-            empSchedule._secondMealMaxEarly = Math.max(0, meal2Latest - meal2Earliest);
+            empSchedule._secondMealTime = idealMeal2;
+            empSchedule._secondMealMaxEarly = Math.max(0, idealMeal2 - meal2Earliest);
         }
     }
 
@@ -227,31 +242,10 @@ export function scheduleBreaks(schedule, options = {}) {
             empSchedule._secondMealTime ?? null
         ].filter(t => t != null).sort((a, b) => a - b);
 
-        const w1 = idealRestWorkedTime(1, empSchedule.totalWorkMinutes);
-        const idealRest1 = resolveIdealRestClock(w1, empSchedule, scheduledMeals);
-        if (restCount >= 1) {
-            breaks[name].rest1 = scheduleRestBreak(
-                name, empSchedule, idealRest1, 'rest1',
-                dept, subdept, group, breaks, employeeSchedules,
-                startOfDay, endOfDay, advSettings, log
-            );
-        }
-
-        const w2 = idealRestWorkedTime(2, empSchedule.totalWorkMinutes);
-        const idealRest2 = resolveIdealRestClock(w2, empSchedule, scheduledMeals);
-        if (restCount >= 2) {
-            breaks[name].rest2 = scheduleRestBreak(
-                name, empSchedule, idealRest2, 'rest2',
-                dept, subdept, group, breaks, employeeSchedules,
-                startOfDay, endOfDay, advSettings, log
-            );
-        }
-
-        const w3 = idealRestWorkedTime(3, empSchedule.totalWorkMinutes);
-        const idealRest3 = resolveIdealRestClock(w3, empSchedule, scheduledMeals);
-        if (restCount >= 3) {
-            breaks[name].rest3 = scheduleRestBreak(
-                name, empSchedule, idealRest3, 'rest3',
+        for (let k = 1; k <= restCount; k++) {
+            const idealRest = computeIdealRestClock(k, empSchedule, scheduledMeals);
+            breaks[name][`rest${k}`] = scheduleRestBreak(
+                name, empSchedule, idealRest, `rest${k}`,
                 dept, subdept, group, breaks, employeeSchedules,
                 startOfDay, endOfDay, advSettings, log
             );
@@ -419,32 +413,6 @@ function deepCloneBreaksObj(breaks) {
 }
 
 /**
- * Compute the ideal worked-time offset (in minutes from shift start) for rest break
- * number `periodIndex` (1-based).
- *
- * Each 4-hour work period has its rest break at the MIDPOINT of that period. For a
- * full 4-hour period this is 2h (120 min) in. For a partial final period (a "major
- * fraction" of 4 hours, i.e., > 2h), this is the midpoint of that shorter window.
- *
- * Examples:
- *   8h shift (480 min): period 1 midpoint = 120, period 2 midpoint = 240+120 = 360
- *   6h01m shift (361 min): period 1 midpoint = 120, period 2 midpoint = 240+60.5 ≈ 300
- *   11h shift (660 min): period 1 = 120, period 2 = 360, period 3 = 480+90 = 570
- *
- * Result is rounded to the nearest 15-minute interval (optimizer step size).
- *
- * @param {number} periodIndex - 1-based rest break number
- * @param {number} totalWorkMinutes - Total scheduled segment time (not deducting meals)
- * @returns {number} Ideal worked-time offset in minutes
- */
-function idealRestWorkedTime(periodIndex, totalWorkMinutes) {
-    const periodStart = (periodIndex - 1) * 240;
-    const periodLength = Math.min(240, totalWorkMinutes - periodStart);
-    const midpoint = periodStart + periodLength / 2;
-    return Math.round(midpoint / 15) * 15;
-}
-
-/**
  * Shift a raw worked-time clock time forward by 30 minutes for each scheduled meal
  * that starts before it. This accounts for the fact that workedTimeToClockTime maps
  * net worked minutes to clock time based on the original segments (ignoring scheduled
@@ -467,33 +435,73 @@ function adjustForMeals(rawTime, mealStarts) {
 }
 
 /**
- * Resolve the ideal rest break clock time from a worked-time offset.
+ * Compute the ideal clock time for rest break number `periodIndex` (1-based) using
+ * a per-work-period footprint algorithm.
  *
- * After mapping worked minutes to clock time and adjusting past scheduled meals,
- * checks whether the result falls within an actual worked segment. If not (the ideal
- * landed in a gap — e.g., a short first segment whose midpoint sits exactly at its
- * end), re-anchors to the midpoint of the next segment. This matches the CA DLSE
- * intent: the break belongs to whichever work period can actually accommodate it.
+ * Each rest break belongs to a 4-hour work period (or the final major fraction).
+ * The break is placed at the midpoint of that period in worked time — but for split
+ * shifts where the worked-time midpoint falls in a gap (the period spans across the
+ * unpaid split), we instead pick the segment-portion with the largest footprint
+ * within the period and place the break at the midpoint of that footprint. On ties,
+ * the later piece wins.
  *
- * Example: 2h + 4h split, break 1 ideal = 120 worked min = end of segment 1 (gap).
- * Re-anchors to midpoint of segment 2 → 2h into the 4h segment.
+ * Examples (assume 8AM clock-in, no scheduled meals):
+ *   8h continuous → P1 mid in seg → 10AM. P2 mid in seg → 2PM.
+ *   6h split 3h+3h → P1 mid (120 worked) maps to 10AM (in seg1) → 10AM.
+ *   2h+4h split → P1 mid (120 worked) hits end of seg1 (gap). Footprint pieces:
+ *                 seg1 entirely (120 min) and first half of seg2 (120 min). Tie →
+ *                 later wins → midpoint of [2PM,4PM] = 3PM.
+ *   1h+5h split → P1 mid (120 worked) maps to 3PM (in seg2) → 3PM.
  *
- * @param {number} workedMin - Net worked-time offset for this break
+ * @param {number} periodIndex - 1-based rest break number
  * @param {EmployeeSchedule} empSchedule
  * @param {number[]} scheduledMeals - Sorted scheduled meal start times (clock time)
- * @returns {number} Ideal clock time for the break
+ * @returns {number} Ideal clock time for the break, rounded to the 15-min grid
  */
-function resolveIdealRestClock(workedMin, empSchedule, scheduledMeals) {
-    const rawClock = empSchedule.workedTimeToClockTime(workedMin) ?? (empSchedule.overallStart + workedMin);
-    const adjusted = adjustForMeals(rawClock, scheduledMeals);
-    if (!empSchedule.isWorkingAt(adjusted)) {
-        // Break was owed at this worked-time mark but the employee clocked out before it
-        // could be taken. When they return, the break is overdue — place it as soon as
-        // practicable: 15 min into the next segment (minimum non-boundary slot).
-        const nextSeg = empSchedule.segments.find(s => s.start > adjusted);
-        if (nextSeg) {
-            return nextSeg.start + 15;
+function computeIdealRestClock(periodIndex, empSchedule, scheduledMeals) {
+    const totalWork = empSchedule.totalWorkMinutes;
+    const periodStart = (periodIndex - 1) * 240;
+    const periodEnd = Math.min(periodIndex * 240, totalWork);
+    if (periodEnd <= periodStart) return empSchedule.overallStart;
+
+    // Primary: use the period's worked-time midpoint when it lands inside a real
+    // worked segment. This preserves the prior algorithm for continuous shifts and
+    // continuous shifts with mid-shift meal gaps.
+    const workedMid = (periodStart + periodEnd) / 2;
+    const rawMid = empSchedule.workedTimeToClockTime(workedMid);
+    if (rawMid != null) {
+        const adjusted = adjustForMeals(rawMid, scheduledMeals);
+        if (empSchedule.isWorkingAt(adjusted)) {
+            return Math.round(adjusted / 15) * 15;
         }
     }
-    return adjusted;
+
+    // Fallback: the worked-time midpoint sits in a split-shift gap. Choose the
+    // segment-portion with the largest footprint inside this period, and place the
+    // break at the midpoint of that footprint. On ties, the later piece wins.
+    const pieces = [];
+    let accumulated = 0;
+    for (const seg of empSchedule.segments) {
+        const segDuration = seg.end - seg.start;
+        const segWorkedStart = accumulated;
+        accumulated += segDuration;
+        const overlapStart = Math.max(periodStart, segWorkedStart);
+        const overlapEnd = Math.min(periodEnd, accumulated);
+        if (overlapEnd > overlapStart) {
+            pieces.push({
+                length: overlapEnd - overlapStart,
+                workedMid: (overlapStart + overlapEnd) / 2,
+                segStart: seg.start,
+                segWorkedStart
+            });
+        }
+    }
+    if (pieces.length === 0) return empSchedule.overallStart + periodStart;
+
+    let best = pieces[0];
+    for (let i = 1; i < pieces.length; i++) {
+        if (pieces[i].length >= best.length) best = pieces[i];
+    }
+    const raw = best.segStart + (best.workedMid - best.segWorkedStart);
+    return Math.round(adjustForMeals(raw, scheduledMeals) / 15) * 15;
 }

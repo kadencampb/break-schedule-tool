@@ -217,6 +217,23 @@
 
                             <hr class="my-4">
 
+                            <h6 class="font-weight-bold mb-3">Meal Period Placement</h6>
+
+                            <div class="form-group">
+                                <label for="idealMealOffset">Preferred Meal Start (worked time after clock-in)</label>
+                                <select class="form-control" id="idealMealOffset">
+                                    <option value="210">3:30</option>
+                                    <option value="225">3:45</option>
+                                    <option value="240">4:00</option>
+                                    <option value="255">4:15</option>
+                                    <option value="270" selected>4:30</option>
+                                    <option value="285">4:45 (latest legal)</option>
+                                </select>
+                                <small class="form-text text-muted">Preferred placement of meal periods relative to worked time since clock-in. 4:00, 4:15, and 4:30 are recommended. Shifts approaching 10 hours have a narrow legal window — the actual meal placement is always clamped to the legal range, so this is a preference, not a guarantee.</small>
+                            </div>
+
+                            <hr class="my-4">
+
                             <h6 class="font-weight-bold mb-3">Coverage Optimization Weights</h6>
 
                             <div class="form-group">

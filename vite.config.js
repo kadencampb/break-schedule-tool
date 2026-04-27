@@ -17,9 +17,13 @@ export default defineConfig({
         sourcemap: false,
         rollupOptions: {
             output: {
-                manualChunks: {
-                    xlsx: ['xlsx'],
-                    bootstrap: ['bootstrap', 'jquery', 'popper.js']
+                manualChunks: (id) => {
+                    if (id.includes('node_modules/xlsx')) return 'xlsx';
+                    if (
+                        id.includes('node_modules/bootstrap') ||
+                        id.includes('node_modules/jquery') ||
+                        id.includes('node_modules/popper.js')
+                    ) return 'bootstrap';
                 }
             }
         }

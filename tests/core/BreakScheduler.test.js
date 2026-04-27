@@ -104,21 +104,21 @@ describe('Break placement', () => {
         }
     });
 
-    it('meal is scheduled as late as safely possible (4h45m worked mark)', () => {
+    it('meal honors the configured idealMealOffset (default 4:30 → 12:30PM for 8AM start)', () => {
         const { breaks } = scheduleBreaks(BASIC_SCHEDULE, OPTIONS);
         const alice = breaks['Alice Smith'];
-        // Alice: 8AM-4:30PM (510 min). netWork = 480. Latest safe start = 480-285=195 worked
-        // min from start → 8AM + 285 worked min = 12:45PM (765). Earliest = 8AM + 195 = 11:15AM (675).
-        // No coverage groups → placed exactly at ideal (latest = 765 = 12:45PM).
-        expect(alice.meal).toBeGreaterThanOrEqual(675); // earliest: 11:15AM
-        expect(alice.meal).toBeLessThanOrEqual(765);    // latest: 12:45PM
+        // Alice: 8AM-4:30PM (510 min). netWork = 480. Legal window = [11:15AM, 12:45PM].
+        // Default idealMealOffset = 270 (4:30 worked) = 12:30PM (750). Within legal window,
+        // so the clamp keeps it at 12:30. Optimizer + dept coverage scoring favors the
+        // ideal time when same-dept coworkers cover the slot.
+        expect(alice.meal).toBe(750); // 12:30PM
     });
 
     it('first rest break is near the 2-hour worked mark (pausing for meal)', () => {
         const { breaks } = scheduleBreaks(BASIC_SCHEDULE, OPTIONS);
         const alice = breaks['Alice Smith'];
-        // Rest 1 ideal: 120 net worked min from 8AM = 10:00AM (600). Meal is at 12:45PM,
-        // which comes after rest 1, so no meal adjustment. Allow ±60 min (new maxEarly/maxDelay).
+        // Rest 1 ideal: period 1 [0,240) worked midpoint = 120 → 10:00AM (600). Meal at
+        // 12:30PM (750) comes after rest 1, so no meal adjustment. Allow ±60 (maxEarly/maxDelay).
         expect(alice.rest1).toBeGreaterThanOrEqual(540); // 9:00AM
         expect(alice.rest1).toBeLessThanOrEqual(660);    // 11:00AM
     });
@@ -216,8 +216,9 @@ describe('Break placement — continuous shift with meal gap', () => {
 describe('Split shift — short first segment (2h + 4h)', () => {
     // Short First Employee: 8AM–10AM (2h) + 2PM–6PM (4h), 4h gap satisfies meal.
     // Total = 6h = 360 min → 1 rest break, no scheduled meal.
-    // Break owed at 120 worked min = end of segment 1 (overdue). Ideal = seg2.start + 15
-    // = 2:15PM (855). Optimizer window [855-60, 855+45] = [795, 900], clipped to [855, 900].
+    // Period 1 [0,240) worked midpoint = 120 lands at the end of seg1 (gap). Fallback
+    // to per-period footprint: pieces are seg1 entirely (120 min) and seg2 first half
+    // (120 min). Tied → later wins → seg2 piece. Midpoint of [2PM, 4PM] = 3:00PM (900).
 
     it('gets exactly one rest break and no meal', () => {
         const { breaks } = scheduleBreaks(SHORT_FIRST_SPLIT_SCHEDULE, OPTIONS);
@@ -236,13 +237,119 @@ describe('Split shift — short first segment (2h + 4h)', () => {
         expect(emp.rest1).toBeGreaterThanOrEqual(840);
     });
 
-    it('rest break is placed as soon as practicable in segment 2 (ideal 2:15PM)', () => {
+    it('rest break is placed at the period footprint midpoint (3:00PM)', () => {
         const { breaks } = scheduleBreaks(SHORT_FIRST_SPLIT_SCHEDULE, OPTIONS);
         const emp = breaks['Short First Employee'];
-        // Break overdue from end of segment 1; ideal = 2:15PM (855).
-        // Valid window within segment 2: [2:15PM (855), 3:00PM (900)]
-        expect(emp.rest1).toBeGreaterThanOrEqual(855); // 2:15PM (earliest in window)
-        expect(emp.rest1).toBeLessThanOrEqual(900);    // 3:00PM (latest in window)
+        // Period 1 footprint: seg1 (120 min) tied with seg2 first half (120 min).
+        // Later wins → midpoint of seg2 footprint piece [2PM, 4PM] = 3:00PM (900).
+        expect(emp.rest1).toBe(900);
+    });
+});
+
+// -------------------------------------------------------------------------
+// Per-period footprint algorithm — additional split shapes
+// -------------------------------------------------------------------------
+
+describe('Split shift — per-period footprint placement', () => {
+    // Build inline schedules for shapes the existing fixtures don't cover.
+    const buildSchedule = (rows) => [
+        ['Date: 2024-01-15'],
+        ['Location: Test Store'],
+        ['Dept', 'Job', 'Name'],
+        [], [], [],
+        ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'],
+        ['Cashier', null, null, null],
+        ...rows
+    ];
+
+    it('3h + 3h split: worked-time midpoint lands inside seg1 → 10:00AM', () => {
+        // 8AM-11AM + 3PM-6PM. Total 6h = 1 rest. Period 1 worked midpoint = 120 falls
+        // inside seg1 (which has 180 min worked), so the primary path returns the
+        // worked midpoint as clock time: 8AM + 120 = 10:00AM. Fallback isn't triggered.
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Even Split', '8:00AM-11:00AM'],
+            [null, 'Cashier', 'Even Split', '3:00PM-6:00PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, OPTIONS);
+        expect(breaks['Even Split'].rest1).toBe(600); // 10:00AM
+    });
+
+    it('1h + 5h split: rest break uses worked-time midpoint inside seg2', () => {
+        // 8AM-9AM + 2PM-7PM. Total 6h = 1 rest. Period 1 worked midpoint = 120 lands
+        // inside seg2 (after 60 min of seg1 are accumulated, 60 more min into seg2 →
+        // 3:00PM). Primary path returns 3:00PM (900).
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Tail Heavy', '8:00AM-9:00AM'],
+            [null, 'Cashier', 'Tail Heavy', '2:00PM-7:00PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, OPTIONS);
+        expect(breaks['Tail Heavy'].rest1).toBe(900); // 3:00PM
+    });
+
+    it('4h + 4h split: two rest breaks placed at midpoint of each segment', () => {
+        // 7AM-11AM + 3PM-7PM. Total 8h = 2 rests. Period 1 [0,240) = seg1 entirely
+        // (midpoint 9AM). Period 2 [240,480) = seg2 entirely (midpoint 5PM).
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Even Eight', '7:00AM-11:00AM'],
+            [null, 'Cashier', 'Even Eight', '3:00PM-7:00PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, OPTIONS);
+        expect(breaks['Even Eight'].rest1).toBe(540);  // 9:00AM
+        expect(breaks['Even Eight'].rest2).toBe(1020); // 5:00PM
+    });
+});
+
+// -------------------------------------------------------------------------
+// Meal preference (idealMealOffset)
+// -------------------------------------------------------------------------
+
+describe('Meal preference — idealMealOffset', () => {
+    const buildSchedule = (rows) => [
+        ['Date: 2024-01-15'],
+        ['Location: Test Store'],
+        ['Dept', 'Job', 'Name'],
+        [], [], [],
+        ['Dept', 'Job', 'Name', 'Shift', '15', '30', '15'],
+        ['Cashier', null, null, null],
+        ...rows
+    ];
+
+    it('default 4:30 offset places meal earlier than the legal latest', () => {
+        // Single 8h shift starting 9AM. Legal window [11:15AM, 1:45PM]. 4:30 worked
+        // = 1:30PM (810). With no coverage interactions (single employee), the result
+        // sits at the preferred clamp.
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Lone Worker', '9:00AM-5:00PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, OPTIONS);
+        expect(breaks['Lone Worker'].meal).toBe(810); // 1:30PM
+    });
+
+    it('preference clamps up to the legal earliest for tight-window shifts', () => {
+        // 9h45m shift (just under the 10h second-meal threshold). totalWork=585,
+        // netWork=555. Legal window = [9AM+270, 9AM+285] = [1:30PM, 1:45PM] = 15 min.
+        // With a 4:00 (240) preference, the raw ideal = 1:00PM, clamped UP to
+        // meal1Earliest = 1:30PM (810).
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Tight Window', '9:00AM-6:45PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, {
+            ...OPTIONS,
+            advancedSettings: { ...TEST_ADV_SETTINGS, idealMealOffset: 240 }
+        });
+        expect(breaks['Tight Window'].meal).toBe(810); // 1:30PM (legal earliest)
+    });
+
+    it('respects a custom idealMealOffset (4:00 → 1:00PM for 9AM start)', () => {
+        const schedule = buildSchedule([
+            [null, 'Cashier', 'Lone Worker', '9:00AM-5:00PM']
+        ]);
+        const { breaks } = scheduleBreaks(schedule, {
+            ...OPTIONS,
+            advancedSettings: { ...TEST_ADV_SETTINGS, idealMealOffset: 240 }
+        });
+        // 4:00 worked from 9AM = 1:00PM (780). Within legal [11:15AM, 1:45PM].
+        expect(breaks['Lone Worker'].meal).toBe(780); // 1:00PM
     });
 });
 
