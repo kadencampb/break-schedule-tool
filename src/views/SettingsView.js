@@ -119,7 +119,10 @@ export class SettingsView extends BaseView {
 
     /** @private */
     _updateDisplayValue(field, value) {
-        const display = this.el(`${field}Value`);
+        // Use direct DOM lookup (not this.el) — some fields (e.g. idealMealOffset
+        // rendered as <select>) intentionally have no display span, and we don't
+        // want to log a warning for the optional case.
+        const display = document.getElementById(`${field}Value`);
         if (display) display.textContent = value;
     }
 

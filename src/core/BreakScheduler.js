@@ -16,7 +16,6 @@ import { findOptimalBreakTime } from './optimizer.js';
 function parseScheduleRows(rows, dataStart, shiftCol) {
     const schedules = new Map();
     let currentDept = '';
-    let currentJob = '';
 
     for (let i = dataStart; i < rows.length; i++) {
         const row = rows[i];
@@ -25,13 +24,13 @@ function parseScheduleRows(rows, dataStart, shiftCol) {
         // Department header row: col A has content, col C does not
         if (row[0] && !row[2]) {
             currentDept = String(row[0]).trim();
-            currentJob = row[1] ? String(row[1]).trim() : '';
             continue;
         }
 
-        // Employee row: col C has a name
+        // Employee row: col C has a name; col B is the per-employee subdept/job.
         if (!row[2]) continue;
 
+        const job = row[1] ? String(row[1]).trim() : '';
         const name = formatName(String(row[2]));
         const shiftStr = row[shiftCol] ? String(row[shiftCol]) : '';
         const [start, end] = parseShiftInterval(shiftStr);
@@ -42,7 +41,7 @@ function parseScheduleRows(rows, dataStart, shiftCol) {
         if (!schedules.has(name)) {
             schedules.set(name, new EmployeeSchedule(name));
         }
-        schedules.get(name).addSegment(currentDept, currentJob, start, end, i);
+        schedules.get(name).addSegment(currentDept, job, start, end, i);
     }
 
     return schedules;
@@ -90,11 +89,30 @@ export function scheduleBreaks(schedule, options = {}) {
     const dataStart      = options.dataStart      ?? 7;
     const shiftCol       = options.shiftColumnIndex ?? 3;
 
-    const { startOfDay, endOfDay } = { startOfDay: operatingHours.startTime, endOfDay: operatingHours.endTime };
     const log = enableLogging ? (...args) => console.log(...args) : () => {}; // eslint-disable-line no-console
 
     // --- Parse rows into EmployeeSchedule objects ---
     const employeeSchedules = parseScheduleRows(schedule, dataStart, shiftCol);
+
+    // Coverage window: cover the union of all employee shifts AND the user's
+    // operating hours. The operating-hours setting describes when the store is
+    // open (a UI concept), but staff often start earlier (stocking) or stay later
+    // (closing) — limiting coverage to operating hours leaves those candidates
+    // tied at zero, which collapses the optimizer to "everyone at the ideal time."
+    let earliestSegment = Infinity;
+    let latestSegment   = -Infinity;
+    for (const empSchedule of employeeSchedules.values()) {
+        for (const seg of empSchedule.segments) {
+            if (seg.start < earliestSegment) earliestSegment = seg.start;
+            if (seg.end   > latestSegment)   latestSegment   = seg.end;
+        }
+    }
+    const startOfDay = Number.isFinite(earliestSegment)
+        ? Math.min(earliestSegment, operatingHours.startTime)
+        : operatingHours.startTime;
+    const endOfDay = Number.isFinite(latestSegment)
+        ? Math.max(latestSegment, operatingHours.endTime)
+        : operatingHours.endTime;
 
     // Build ordered list of names (schedule order for deterministic break assignment)
     const employeeOrder = [];
