@@ -53,8 +53,11 @@ export function findOptimalBreakTime(params) {
         return { bestTime: fallback, bestScore: -1 };
     }
 
+    const deptMode = advSettings.deptCoverageMode || 'balanced';
+    const timeMode = advSettings.timeCoverageMode || 'balanced';
+
     let bestTime = validCandidates[0];
-    let bestScore = -Infinity;
+    let bestVec  = null;
 
     for (const testTime of validCandidates) {
         // Temporarily assign this break time and measure coverage
@@ -64,45 +67,98 @@ export function findOptimalBreakTime(params) {
 
         const coverageMap = calculateCoverageMap(employeeSchedules, tempBreaks, startOfDay, endOfDay);
 
-        // Find the minimum coverage in the group during the break window
-        let minDeptCoverage = Infinity;
-        let minGroupCoverage = Infinity;
+        // Compute AVERAGE coverage during the break window. Average distinguishes
+        // partial-overlap candidates from full-overlap (a meal that overlaps only
+        // the first half of a coworker's break should outscore one that overlaps
+        // the whole break), which `min` flattened.
+        let deptSum = 0;
+        let groupSum = 0;
+        let samples = 0;
 
         for (let t = testTime; t < testTime + breakDuration; t += 15) {
             const present = coverageMap[t] || [];
-
-            const deptCount = present.filter(c => c.dept === dept && c.subdept === subdept).length;
-            minDeptCoverage = Math.min(minDeptCoverage, deptCount);
-
+            deptSum += present.filter(c => c.dept === dept && c.subdept === subdept).length;
             if (group) {
-                const groupCount = present.filter(c =>
+                groupSum += present.filter(c =>
                     group.departments.some(d => d.main === c.dept && d.sub === c.subdept)
                 ).length;
-                minGroupCoverage = Math.min(minGroupCoverage, groupCount);
-            } else {
-                minGroupCoverage = 0;
             }
+            samples++;
         }
 
-        // Score: prioritize same-dept coverage, then group coverage, then proximity
-        const coverageScore = (minDeptCoverage * advSettings.deptWeightMultiplier) + minGroupCoverage;
+        const avgDeptCoverage  = samples > 0 ? deptSum  / samples : 0;
+        const avgGroupCoverage = samples > 0 ? groupSum / samples : 0;
 
         const maxDistance = Math.max(advSettings.maxEarly, advSettings.maxDelay);
-        const maxIntervals = maxDistance / 15;
+        const maxIntervals = maxDistance > 0 ? maxDistance / 15 : 1;
         const intervalsAway = Math.abs(testTime - idealTime) / 15;
-        const proximityBonus = advSettings.proximityWeight * Math.max(0, maxIntervals - intervalsAway);
+        const proximity = Math.max(0, maxIntervals - intervalsAway);
 
-        const finalScore = coverageScore + proximityBonus;
+        const vec = buildScoreVector(avgDeptCoverage, avgGroupCoverage, proximity, deptMode, timeMode);
 
-        log(`  [EVAL] ${empName}: ${minutesToTime(testTime)} → dept=${minDeptCoverage}, group=${minGroupCoverage}, score=${finalScore.toFixed(2)}`);
+        log(`  [EVAL] ${empName}: ${minutesToTime(testTime)} → dept=${avgDeptCoverage.toFixed(2)}, group=${avgGroupCoverage.toFixed(2)}, prox=${proximity.toFixed(2)}, vec=[${vec.map(v => v.toFixed(2)).join(',')}]`);
 
-        if (finalScore > bestScore) {
-            bestScore = finalScore;
+        if (bestVec === null || compareScoreVectors(vec, bestVec) > 0) {
+            bestVec = vec;
             bestTime = testTime;
         }
     }
 
-    return { bestTime, bestScore };
+    return { bestTime, bestScore: bestVec ? bestVec[0] : -1 };
+}
+
+/**
+ * Build a lexicographic score vector for a candidate time given the user's
+ * coverage-priority and time-vs-coverage modes. Higher tuples win.
+ *
+ * Coverage component (from deptCoverageMode):
+ *   'individual' → primary = same-subdept count;       secondary = 0
+ *   'group'      → primary = whole coverage-group count; secondary = 0
+ *   'balanced'   → primary = same-subdept count;       secondary = whole-group count
+ *
+ * Then the time component (from timeCoverageMode) layers on top:
+ *   'predictable' → [proximity, primary, secondary]   — proximity wins outright
+ *   'coverage'    → [primary, secondary, proximity]   — coverage wins outright
+ *   'balanced'    → [primary + proximity, secondary]  — both contribute, coverage breaks ties
+ */
+function buildScoreVector(deptCount, groupCount, proximity, deptMode, timeMode) {
+    let primaryCov, secondaryCov;
+    if (deptMode === 'individual') {
+        primaryCov = deptCount;
+        secondaryCov = 0;
+    } else if (deptMode === 'group') {
+        primaryCov = groupCount;
+        secondaryCov = 0;
+    } else { // 'balanced'
+        primaryCov = deptCount;
+        secondaryCov = groupCount;
+    }
+
+    if (timeMode === 'predictable') {
+        return [proximity, primaryCov, secondaryCov];
+    }
+    if (timeMode === 'coverage') {
+        return [primaryCov, secondaryCov, proximity];
+    }
+    // 'balanced' — weight coverage so 1 lost coworker outweighs a 45-min
+    // proximity penalty. This is the calibration that pulls duplicate meals
+    // off the same time slot when many coworkers share an ideal time.
+    const COVERAGE_WEIGHT = 3;
+    return [primaryCov * COVERAGE_WEIGHT + proximity, secondaryCov];
+}
+
+/**
+ * Compare two score vectors element-by-element. Returns positive if `a` wins,
+ * negative if `b` wins, 0 if tied. Treats missing elements as 0.
+ */
+function compareScoreVectors(a, b) {
+    const len = Math.max(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+        const av = a[i] ?? 0;
+        const bv = b[i] ?? 0;
+        if (av !== bv) return av - bv;
+    }
+    return 0;
 }
 
 /**

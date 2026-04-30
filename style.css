@@ -423,3 +423,358 @@ footer {
 .slider-ticks {
     display: none;
 }
+
+/* ===== Break Time Flexibility graphic ===== */
+
+.break-flex-graphic {
+    --bfg-cell-count: 16;
+    --bfg-cell-size: calc(100% / var(--bfg-cell-count));
+    --bfg-handle-size: 18px;
+    --bfg-track-height: 56px;
+    --bfg-color-ideal: #2f855a;
+    --bfg-color-ideal-cell: #9ae6b4;
+    --bfg-color-valid: #c6f6d5;
+    --bfg-color-out: #edf2f7;
+    --bfg-color-disabled: #cdd5df;
+    --bfg-color-divider: #cbd5e0;
+    --bfg-color-divider-hour: #a0aec0;
+
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem 1rem 0.75rem;
+    user-select: none;
+}
+
+.bfg-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.bfg-stage {
+    position: relative;
+    height: var(--bfg-track-height);
+    margin: 0 calc(var(--bfg-handle-size) / 2);
+}
+
+.bfg-track {
+    display: grid;
+    grid-template-columns: repeat(var(--bfg-cell-count), 1fr);
+    height: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bfg-color-out);
+}
+
+.bfg-cell {
+    background: var(--bfg-color-out);
+    border-left: 1px solid var(--bfg-color-divider);
+    transition: background-color 120ms ease;
+}
+
+.bfg-cell:first-child {
+    border-left: none;
+}
+
+/* Hour boundaries: cell at index 4, 8, 12 (every 4th) */
+.bfg-cell[data-hour-mark="true"] {
+    border-left: 2px solid var(--bfg-color-divider-hour);
+}
+
+/* Mirror the leftmost hour mark on the rightmost edge for visual symmetry */
+.bfg-cell:last-child {
+    border-right: 2px solid var(--bfg-color-divider-hour);
+}
+
+.bfg-cell[data-state="valid"] {
+    background: var(--bfg-color-valid);
+}
+
+.bfg-cell[data-state="ideal"] {
+    background: var(--bfg-color-ideal-cell);
+}
+
+.bfg-cell[data-state="disabled"] {
+    background: var(--bfg-color-disabled);
+}
+
+/* Make 15-min subdivisions visible against the disabled (darker) background.
+   The hour-mark cells keep their thicker hour stroke from the rule above. */
+.bfg-cell[data-state="disabled"]:not([data-hour-mark="true"]) {
+    border-left-color: #a0aec0;
+}
+
+/* Draggable handles */
+.bfg-handle {
+    position: absolute;
+    top: 50%;
+    width: var(--bfg-handle-size);
+    height: calc(var(--bfg-track-height) + 12px);
+    margin-left: calc(var(--bfg-handle-size) / -2);
+    transform: translateY(-50%);
+    background: var(--bfg-color-ideal);
+    border: 2px solid #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    cursor: ew-resize;
+    touch-action: none;
+    transition: transform 80ms ease, box-shadow 120ms ease;
+    z-index: 2;
+}
+
+.bfg-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 2px;
+    transform: translate(-50%, -50%);
+}
+
+.bfg-handle:hover,
+.bfg-handle:focus {
+    transform: translateY(-50%) scale(1.08);
+    outline: none;
+    box-shadow: 0 4px 12px rgba(47, 133, 90, 0.45);
+}
+
+.bfg-handle.is-dragging {
+    transform: translateY(-50%) scale(1.12);
+    box-shadow: 0 6px 14px rgba(47, 133, 90, 0.55);
+}
+
+/* Axis labels under the track */
+.bfg-axis {
+    position: relative;
+    height: 2.5rem;
+    margin: 0.5rem calc(var(--bfg-handle-size) / 2) 0;
+}
+
+.bfg-axis-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: #718096;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.bfg-axis-label-ideal {
+    color: var(--bfg-color-ideal);
+    font-weight: 600;
+}
+
+.bfg-axis-label-ideal small {
+    font-weight: 400;
+    color: var(--bfg-color-ideal);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.65rem;
+}
+
+.bfg-readout {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #4a5568;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+/* Stack readouts vertically when labels are long (rest break section) */
+.bfg-readout.bfg-readout-stack {
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Bold labels stay black; only the numeric values are highlighted green. */
+.bfg-readout #maxEarlyValue,
+.bfg-readout #maxDelayValue,
+.bfg-readout #idealMealOffsetValue {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--bfg-color-ideal);
+}
+
+/* ===== Meal Period Placement graphic (variant of the break-flex graphic) ===== */
+
+.meal-pref-graphic {
+    --bfg-cell-count: 16;
+    --bfg-cell-size: calc(100% / var(--bfg-cell-count));
+    --bfg-handle-size: 18px;
+    --bfg-track-height: 56px;
+    --bfg-color-ideal: #2f855a;
+    --bfg-color-ideal-cell: #9ae6b4;
+    --bfg-color-out: #edf2f7;
+    --bfg-color-disabled: #cdd5df;
+    --bfg-color-divider: #cbd5e0;
+    --bfg-color-divider-hour: #a0aec0;
+
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem 1rem 0.75rem;
+    user-select: none;
+}
+
+.bfg-stage-meal {
+    position: relative;
+    height: var(--bfg-track-height);
+    margin: 0;
+}
+
+.bfg-track-meal {
+    grid-template-columns: repeat(16, 1fr);
+}
+
+.bfg-meal-block {
+    position: absolute;
+    top: 50%;
+    height: calc(var(--bfg-track-height) + 12px);
+    width: calc(100% * 2 / 16);
+    transform: translateY(-50%);
+    background: var(--bfg-color-ideal-cell);
+    border: 2px solid var(--bfg-color-ideal);
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    cursor: ew-resize;
+    touch-action: none;
+    transition: transform 80ms ease, box-shadow 120ms ease, background-color 120ms ease;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bfg-meal-block-arrow {
+    color: rgba(47, 133, 90, 0.9);
+    font-weight: 700;
+    font-size: 1.1rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.bfg-meal-block:hover {
+    transform: translateY(-50%) scale(1.04);
+    box-shadow: 0 4px 12px rgba(47, 133, 90, 0.45);
+}
+
+.bfg-meal-block.is-dragging {
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 6px 14px rgba(47, 133, 90, 0.55);
+}
+
+/* Visual feedback when the user tries to drag past the allowed range */
+@keyframes bfg-block-shake {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    20%      { transform: translateY(-50%) translateX(-5px); }
+    40%      { transform: translateY(-50%) translateX(5px); }
+    60%      { transform: translateY(-50%) translateX(-4px); }
+    80%      { transform: translateY(-50%) translateX(4px); }
+}
+
+.bfg-meal-block.is-blocked {
+    animation: bfg-block-shake 160ms ease;
+    border-color: #e53e3e;
+    background: #fed7d7;
+    cursor: not-allowed;
+}
+
+.bfg-meal-block.is-blocked .bfg-meal-block-arrow {
+    color: #c53030;
+}
+
+.bfg-axis-meal {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* ===== Segmented (3-position pill) controls for coverage priorities ===== */
+
+.bfg-segmented {
+    display: flex;
+    width: 100%;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.bfg-segment {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.7rem 0.5rem;
+    font-size: 0.85rem;
+    color: #4a5568;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    line-height: 1.15;
+    text-align: center;
+    min-width: 0;
+}
+
+.bfg-segment i {
+    font-size: 1.25rem;
+    color: #718096;
+    transition: color 120ms ease;
+}
+
+.bfg-segment:hover {
+    background: rgba(47, 133, 90, 0.1);
+    color: #2f855a;
+}
+.bfg-segment:hover i {
+    color: #2f855a;
+}
+
+.bfg-segment.is-active {
+    background: #2f855a;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(47, 133, 90, 0.35);
+}
+.bfg-segment.is-active i {
+    color: #fff;
+}
+.bfg-segment.is-active:hover {
+    background: #276749;
+    color: #fff;
+}
+
+.bfg-segment:focus-visible {
+    outline: 2px solid rgba(47, 133, 90, 0.45);
+    outline-offset: 2px;
+}
+
+/* Hidden inputs that preserve maxEarly/maxDelay state */
+.bfg-hidden-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    pointer-events: none;
+}

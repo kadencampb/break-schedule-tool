@@ -173,116 +173,132 @@
                     </div>
                     <div class="collapse" id="advancedSettingsCollapse" aria-labelledby="advancedSettingsHeader">
                         <div class="p-3">
-                            <div class="alert alert-warning small mb-3" role="alert">
-                                <i class="fas fa-exclamation-triangle mr-2"></i><strong>Warning:</strong> Only modify these settings if you understand how the break optimization algorithm works. Incorrect values may result in poor coverage or non-compliant break scheduling.
-                            </div>
+                            <h6 class="font-weight-bold mb-2">Rest Period Placement</h6>
+                            <small class="form-text text-muted mb-3">
+                                Adjust how far from the ideal time rest periods can be scheduled to maximize department staffing.
+                            </small>
 
-                            <h6 class="font-weight-bold mb-3">Break Time Flexibility</h6>
-
-                            <div class="form-group">
-                                <label for="maxEarly">
-                                    Maximum Early Start: <strong><span id="maxEarlyValue">15</span> minutes</strong>
-                                </label>
-                                <div class="slider-container">
-                                    <div class="slider-wrapper">
-                                        <input type="range" class="form-control-range" id="maxEarly" min="0" max="45" step="15" value="15">
-                                        <div class="slider-ticks">
-                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">15</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">30</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">45</span></div>
-                                        </div>
+                            <div class="break-flex-graphic" id="breakFlexGraphic">
+                                <div class="bfg-header">Example four-hour work period</div>
+                                <div class="bfg-stage">
+                                    <div class="bfg-track" id="bfgTrack" aria-hidden="true">
+                                        <!-- 16 cells inserted by SettingsView at runtime -->
                                     </div>
+                                    <div class="bfg-handle bfg-handle-early"
+                                         id="bfgHandleEarly"
+                                         aria-hidden="true"></div>
+                                    <div class="bfg-handle bfg-handle-delay"
+                                         id="bfgHandleDelay"
+                                         aria-hidden="true"></div>
                                 </div>
-                                <small class="form-text text-muted">How early any break can be scheduled before the ideal time. Higher values give more flexibility for coverage optimization.</small>
+                                <div class="bfg-axis" aria-hidden="true">
+                                    <span class="bfg-axis-label" style="left: 0%;">0h</span>
+                                    <span class="bfg-axis-label" style="left: 25%;">1h</span>
+                                    <span class="bfg-axis-label bfg-axis-label-ideal" style="left: 53.125%;">2h<br><small>ideal</small></span>
+                                    <span class="bfg-axis-label" style="left: 75%;">3h</span>
+                                    <span class="bfg-axis-label" style="left: 100%;">4h</span>
+                                </div>
+                                <div class="bfg-readout bfg-readout-stack">
+                                    <span class="bfg-readout-early">
+                                        <strong>Earliest possible</strong>: <span id="maxEarlyValue">60</span>m before ideal
+                                    </span>
+                                    <span class="bfg-readout-delay">
+                                        <strong>Latest possible</strong>: <span id="maxDelayValue">45</span>m after ideal
+                                    </span>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="maxDelay">
-                                    Maximum Delay: <strong><span id="maxDelayValue">30</span> minutes</strong>
-                                </label>
-                                <div class="slider-container">
-                                    <div class="slider-wrapper">
-                                        <input type="range" class="form-control-range" id="maxDelay" min="0" max="45" step="15" value="30">
-                                        <div class="slider-ticks">
-                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">15</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">30</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">45</span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <small class="form-text text-muted">How late any break can be scheduled past the ideal time. Higher values give more flexibility for coverage optimization.</small>
-                            </div>
+                            <!-- Hidden range inputs preserve model state and serve as a screen-reader fallback -->
+                            <input type="range" id="maxEarly" min="0" max="105" step="15" value="60" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
+                            <input type="range" id="maxDelay" min="0" max="105" step="15" value="45" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
 
                             <hr class="my-4">
 
-                            <h6 class="font-weight-bold mb-3">Meal Period Placement</h6>
+                            <h6 class="font-weight-bold mb-2">Meal Period Placement</h6>
+                            <small class="form-text text-muted mb-3">
+                                Select a preferred meal period placement relative to clock-in time.
+                                <strong>This is just a preference. The scheduler will not schedule a meal period in violation with labor law.</strong>
+                            </small>
 
-                            <div class="form-group">
-                                <label for="idealMealOffset">Preferred Meal Start (worked time after clock-in)</label>
-                                <select class="form-control" id="idealMealOffset">
-                                    <option value="210">3:30</option>
-                                    <option value="225">3:45</option>
-                                    <option value="240">4:00</option>
-                                    <option value="255">4:15</option>
-                                    <option value="270" selected>4:30</option>
-                                    <option value="285">4:45 (latest legal)</option>
-                                </select>
-                                <small class="form-text text-muted">Preferred placement of meal periods relative to worked time since clock-in. 4:00, 4:15, and 4:30 are recommended. Shifts approaching 10 hours have a narrow legal window — the actual meal placement is always clamped to the legal range, so this is a preference, not a guarantee.</small>
+                            <div class="meal-pref-graphic" id="mealPrefGraphic">
+                                <div class="bfg-header">Time elapsed since clock-in</div>
+                                <div class="bfg-stage bfg-stage-meal">
+                                    <div class="bfg-track bfg-track-meal" id="mealPrefTrack" aria-hidden="true">
+                                        <!-- 16 cells inserted by SettingsView at runtime -->
+                                    </div>
+                                    <div class="bfg-meal-block" id="mealPrefBlock" aria-hidden="true">
+                                        <span class="bfg-meal-block-arrow">↔</span>
+                                    </div>
+                                </div>
+                                <div class="bfg-axis bfg-axis-meal" aria-hidden="true">
+                                    <span class="bfg-axis-label" style="left: 0%;">2h</span>
+                                    <span class="bfg-axis-label" style="left: 25%;">3h</span>
+                                    <span class="bfg-axis-label" style="left: 50%;">4h</span>
+                                    <span class="bfg-axis-label" style="left: 75%;">5h</span>
+                                    <span class="bfg-axis-label" style="left: 100%;">6h</span>
+                                </div>
+                                <div class="bfg-readout">
+                                    <span>Meal starts <strong><span id="idealMealOffsetValue">4:30</span></strong> after clock-in</span>
+                                </div>
                             </div>
+
+                            <!-- Hidden select preserves model state and serves as a screen-reader fallback -->
+                            <select id="idealMealOffset" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
+                                <option value="180">3:00</option>
+                                <option value="195">3:15</option>
+                                <option value="210">3:30</option>
+                                <option value="225">3:45</option>
+                                <option value="240">4:00</option>
+                                <option value="255">4:15</option>
+                                <option value="270" selected>4:30</option>
+                                <option value="285">4:45</option>
+                            </select>
 
                             <hr class="my-4">
 
-                            <h6 class="font-weight-bold mb-3">Coverage Optimization Weights</h6>
+                            <h6 class="font-weight-bold mb-2">Department Coverage Priority</h6>
+                            <small class="form-text text-muted mb-3">
+                                How the scheduler counts coworkers when staggering breaks.
+                                Pick <em>individual</em> to keep coverage tight within each subdepartment, or
+                                <em>whole group</em> to balance coverage across every department in the group.
+                            </small>
 
-                            <div class="form-group">
-                                <label for="deptWeightMultiplier">
-                                    Same-Department Coverage Weight: <strong><span id="deptWeightMultiplierValue">4</span>×</strong>
-                                </label>
-                                <div class="slider-container">
-                                    <div class="slider-wrapper">
-                                        <input type="range" class="form-control-range" id="deptWeightMultiplier" min="1" max="10" step="1" value="4">
-                                        <div class="slider-ticks">
-                                            <div class="slider-tick"><span class="slider-tick-label">1</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">2</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">3</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">4</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">5</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">6</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">7</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">8</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">9</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">10</span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <small class="form-text text-muted">How much to prioritize same-department coverage over overall group coverage. Higher values mean breaks are scheduled to maintain department coverage first, then group coverage second.</small>
+                            <div class="bfg-segmented" id="deptCoverageMode" role="radiogroup" aria-label="Department coverage priority">
+                                <button type="button" class="bfg-segment" data-value="individual">
+                                    <i class="fas fa-user" aria-hidden="true"></i>
+                                    <span>Individual department</span>
+                                </button>
+                                <button type="button" class="bfg-segment is-active" data-value="balanced">
+                                    <i class="fas fa-balance-scale" aria-hidden="true"></i>
+                                    <span>Balanced</span>
+                                </button>
+                                <button type="button" class="bfg-segment" data-value="group">
+                                    <i class="fas fa-people-group" aria-hidden="true"></i>
+                                    <span>Whole department group</span>
+                                </button>
                             </div>
 
-                            <div class="form-group">
-                                <label for="proximityWeight">
-                                    Ideal Break Time Priority: <strong><span id="proximityWeightValue">1</span>×</strong>
-                                </label>
-                                <div class="slider-container">
-                                    <div class="slider-wrapper">
-                                        <input type="range" class="form-control-range" id="proximityWeight" min="0" max="10" step="1" value="1">
-                                        <div class="slider-ticks">
-                                            <div class="slider-tick"><span class="slider-tick-label">0</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">1</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">2</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">3</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">4</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">5</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">6</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">7</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">8</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">9</span></div>
-                                            <div class="slider-tick"><span class="slider-tick-label">10</span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <small class="form-text text-muted">How strongly to prefer ideal break times when coverage scores are similar. Higher values mean breaks stay closer to ideal times (2 hours for rest, 4 hours for meals).</small>
+                            <div class="mt-4"></div>
+
+                            <h6 class="font-weight-bold mb-2">Time vs Coverage Priority</h6>
+                            <small class="form-text text-muted mb-3">
+                                Whether the scheduler should hold breaks close to the ideal time or
+                                shift them to maximize coverage.
+                            </small>
+
+                            <div class="bfg-segmented" id="timeCoverageMode" role="radiogroup" aria-label="Time vs coverage priority">
+                                <button type="button" class="bfg-segment" data-value="predictable">
+                                    <i class="fas fa-clock" aria-hidden="true"></i>
+                                    <span>Predictable times</span>
+                                </button>
+                                <button type="button" class="bfg-segment is-active" data-value="balanced">
+                                    <i class="fas fa-balance-scale" aria-hidden="true"></i>
+                                    <span>Balanced</span>
+                                </button>
+                                <button type="button" class="bfg-segment" data-value="coverage">
+                                    <i class="fas fa-users" aria-hidden="true"></i>
+                                    <span>Maximum coverage</span>
+                                </button>
                             </div>
 
                             <div class="mt-3">

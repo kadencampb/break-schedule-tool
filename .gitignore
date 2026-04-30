@@ -7,6 +7,9 @@ dist/
 # Vite cache
 .vite/
 
+# reference images
+reference\ images/
+
 # Old bundled files (replaced by npm packages)
 xlsx.bundle.js
 xlsx.bundle.js.map
