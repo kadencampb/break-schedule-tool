@@ -12,6 +12,14 @@
 </head>
 
 <body id="app-root">
+    <!-- Wizard root — primary UI. WizardController mounts here on load. -->
+    <div id="wizardRoot" class="wizard-root"></div>
+
+    <!-- Legacy single-page UI. Hidden by default; "Customize advanced settings"
+         in the wizard's review step temporarily reveals it so the user can use
+         the existing graphic editors. All element IDs preserved so existing
+         SettingsView/CoverageGroupModel bindings continue to function. -->
+    <div id="legacyShell" hidden>
     <div class="container mt-5">
         <div class="card shadow">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -179,7 +187,7 @@
                             </small>
 
                             <div class="break-flex-graphic" id="breakFlexGraphic">
-                                <div class="bfg-header">Example four-hour work period</div>
+                                <div class="bfg-header">Time elapsed since start of each 4h work period</div>
                                 <div class="bfg-stage">
                                     <div class="bfg-track" id="bfgTrack" aria-hidden="true">
                                         <!-- 16 cells inserted by SettingsView at runtime -->
@@ -244,6 +252,7 @@
 
                             <!-- Hidden select preserves model state and serves as a screen-reader fallback -->
                             <select id="idealMealOffset" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
+                                <option value="165">2:45</option>
                                 <option value="180">3:00</option>
                                 <option value="195">3:15</option>
                                 <option value="210">3:30</option>
@@ -459,6 +468,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /legacyShell -->
 
     <!-- Application entry point — bundled by Vite (includes Bootstrap JS, jQuery, app code) -->
     <script type="module" src="/src/main.js"></script>

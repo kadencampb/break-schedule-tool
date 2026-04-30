@@ -27,6 +27,7 @@ Thumbs.db
 
 # Internal documents (not for public repos)
 *.pdf
+*.xlsx
 
 # Legacy data file (superseded by src/core/constants.js)
 coverage-groups.json

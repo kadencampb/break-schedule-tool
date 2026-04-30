@@ -1,134 +1,25 @@
 /**
- * Department registry — all known main departments and their sub-departments.
- * Used to populate the coverage group picker and validate schedule data.
+ * Default coverage optimization groups. Only departments that share staff
+ * across subdepts get pre-grouped; everything else stays standalone and the
+ * user can drag-and-drop to combine them in the wizard's Departments step.
  */
-export const DEPARTMENT_REGISTRY = {
-    'Frontline': [
-        'Cashier',
-        'Cashier Bldg 2',
-        'Customer Service',
-        'Customer Service Bldg 2',
-        'Greeter',
-        'Greeter Bldg 2',
-        'Order Pick Up',
-        'Order Pick Up Bldg 2'
-    ],
-    'Hardgoods': [
-        'Action Sports',
-        'Camping',
-        'Climbing',
-        'Cycling',
-        'Hardgoods',
-        'Nordic',
-        'Optics',
-        'Outfitter',
-        'Packs',
-        'Paddling',
-        'Racks',
-        'Rentals',
-        'Ski',
-        'Snow Clothing',
-        'Snow Sports'
-    ],
-    'Softgoods': [
-        'Childrenswear',
-        'Clothing',
-        'Fitting Room',
-        'Footwear',
-        'Mens Clothing',
-        'Outfitter',
-        'Softgoods',
-        'Womens Clothing'
-    ],
-    'Office': [
-        'Banker',
-        'Office'
-    ],
-    'Order Fulfillment': [
-        'Order Fulfillment',
-        'Order Fulfillment Bldg 2'
-    ],
-    'Product Movement': [
-        'Action Sports Stock',
-        'Camping Stock',
-        'Clothing Stock',
-        'Cycling Stock',
-        'Footwear Stock',
-        'Hardgoods Stock',
-        'Ops Stock',
-        'Ops Stock Bldg 2',
-        'Ship Recv',
-        'Ship Recv Bldg 2',
-        'Snow Sports Stock',
-        'Softgoods Stock',
-        'Stocking'
-    ],
-    'Shop': [
-        'Assembler',
-        'Service Advisor',
-        'Ski Shop'
-    ],
-    'Mgmt Retail': [
-        'Key Holder',
-        'Key Holder Bldg 2',
-        'Leader on Duty',
-        'Management',
-        'Management Bldg 2'
-    ]
-};
-
-/** Default coverage optimization groups */
 export const DEFAULT_GROUPS = [
     {
         id: 1,
-        name: 'Building 2',
+        name: 'Bldg 2',
         departments: [
+            { main: 'Frontline', sub: 'Customer Service Bldg 2' },
             { main: 'Hardgoods', sub: 'Action Sports' },
-            { main: 'Hardgoods', sub: 'Rentals' },
-            { main: 'Frontline', sub: 'Customer Service Bldg 2' }
+            { main: 'Hardgoods', sub: 'Rentals' }
         ]
     },
     {
         id: 2,
-        name: 'Camping',
-        departments: [{ main: 'Hardgoods', sub: 'Camping' }]
-    },
-    {
-        id: 3,
-        name: 'Clothing',
-        departments: [{ main: 'Softgoods', sub: 'Clothing' }]
-    },
-    {
-        id: 4,
-        name: 'Footwear',
-        departments: [{ main: 'Softgoods', sub: 'Footwear' }]
-    },
-    {
-        id: 5,
-        name: 'Cashier',
-        departments: [{ main: 'Frontline', sub: 'Cashier' }]
-    },
-    {
-        id: 6,
-        name: 'Customer Service',
-        departments: [{ main: 'Frontline', sub: 'Customer Service' }]
-    },
-    {
-        id: 7,
-        name: 'Order Fulfillment',
-        departments: [{ main: 'Order Fulfillment', sub: 'Order Fulfillment' }]
-    },
-    {
-        id: 9,
         name: 'Shop',
-        departments: [{ main: 'Shop', sub: 'Service Advisor' }]
-    },
-    {
-        id: 10,
-        name: 'Management',
         departments: [
-            { main: 'Mgmt Retail', sub: 'Management' },
-            { main: 'Mgmt Retail', sub: 'Management Bldg 2' }
+            { main: 'Shop', sub: 'Shop' },
+            { main: 'Shop', sub: 'Service Advisor' },
+            { main: 'Shop', sub: 'Assembler' }
         ]
     }
 ];
@@ -153,8 +44,8 @@ export const DEFAULT_GROUPS = [
  *   'coverage'    — pick the time with the most coworkers present; proximity breaks ties
  */
 export const DEFAULT_ADVANCED_SETTINGS = {
-    maxEarly: 60,
-    maxDelay: 45,
+    maxEarly: 30,
+    maxDelay: 60,
     deptCoverageMode: 'balanced',
     timeCoverageMode: 'balanced',
     idealMealOffset: 270

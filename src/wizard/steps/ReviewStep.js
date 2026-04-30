@@ -1,0 +1,178 @@
+import { renderPreview } from '../SchedulePreview.js';
+
+export const LAYOUT = 'split';
+
+const DAY_KEYS  = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * ReviewStep — final confirmation before running. Shows every setting
+ * (state, hours, departments, advanced) with a "Change" link on each so the
+ * user can hop to the relevant step, edit, and return.
+ */
+export function renderReview(stepEl, state, callbacks) {
+    const sidebar = stepEl.querySelector('.wizard-sidebar-content');
+    const stage   = stepEl.querySelector('.wizard-stage-content');
+    renderSidebar(sidebar, state, callbacks);
+    renderPreview(stage, state);
+}
+
+function renderSidebar(el, state, callbacks) {
+    const adv = state.advancedSettings;
+    const totalDepts    = state.upload.detectedDepartments?.length || 0;
+    const selectedDepts = state.selectedDepartments?.size || 0;
+
+    el.innerHTML = `
+        <div class="wizard-sidebar-eyebrow">Step 5 of 6</div>
+        <h2 class="wizard-sidebar-title">Looks good?</h2>
+        <p class="wizard-sidebar-sub">
+            Review every setting before running.
+        </p>
+
+        <div class="wizard-summary-stack">
+            ${summaryRow({
+                icon: 'fas fa-map-marker-alt',
+                label: 'State',
+                value: 'California',
+                action: 'state'
+            })}
+            ${summaryRow({
+                icon: 'far fa-clock',
+                label: 'Operating hours',
+                value: formatHoursSummary(state.schedules),
+                action: 'hours'
+            })}
+            ${summaryRow({
+                icon: 'fas fa-sitemap',
+                label: 'Departments',
+                value: `${selectedDepts} of ${totalDepts} staggered`,
+                action: 'departments'
+            })}
+
+            <div class="wizard-summary-divider">Advanced</div>
+
+            ${summaryRow({
+                icon: 'fas fa-coffee',
+                label: 'Rest break window',
+                value: `${120 - adv.maxEarly}–${120 + adv.maxDelay}m after period start`,
+                action: 'customize'
+            })}
+            ${summaryRow({
+                icon: 'fas fa-utensils',
+                label: 'Meal placement',
+                value: `${formatMinutes(adv.idealMealOffset)} after clock-in`,
+                action: 'customize'
+            })}
+            ${summaryRow({
+                icon: 'fas fa-users',
+                label: 'Coverage priority',
+                value: formatDeptMode(adv.deptCoverageMode),
+                action: 'customize'
+            })}
+            ${summaryRow({
+                icon: 'fas fa-balance-scale',
+                label: 'Time vs coverage',
+                value: formatTimeMode(adv.timeCoverageMode),
+                action: 'customize'
+            })}
+        </div>
+
+        <div class="wizard-nav">
+            <button type="button" class="wizard-btn wizard-btn-ghost" data-action="back">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button type="button" class="wizard-btn wizard-btn-primary" data-action="run">
+                Run <i class="fas fa-play"></i>
+            </button>
+        </div>
+    `;
+
+    // Wire "Change" links on each summary row
+    el.querySelectorAll('[data-change]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-change');
+            if (target === 'customize') callbacks.onCustomize();
+            else                         callbacks.onChangeStep(target);
+        });
+    });
+
+    el.querySelector('[data-action="back"]')?.addEventListener('click', callbacks.onBack);
+    el.querySelector('[data-action="run"]')?.addEventListener('click', callbacks.onContinue);
+}
+
+function summaryRow({ icon, label, value, action }) {
+    return `
+        <div class="wizard-summary-row">
+            <i class="${icon}"></i>
+            <div class="wizard-summary-body">
+                <div class="wizard-summary-label">${label}</div>
+                <div class="wizard-summary-value">${value}</div>
+            </div>
+            <button type="button" class="wizard-summary-change" data-change="${action}">Change</button>
+        </div>
+    `;
+}
+
+// ── Formatters ─────────────────────────────────────────────────────────────
+
+function formatMinutes(min) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+function formatDeptMode(mode) {
+    return ({
+        individual: 'Individual department',
+        balanced:   'Balanced',
+        group:      'Whole department group'
+    })[mode] || 'Balanced';
+}
+
+function formatTimeMode(mode) {
+    return ({
+        predictable: 'Predictable times',
+        balanced:    'Balanced',
+        coverage:    'Maximum coverage'
+    })[mode] || 'Balanced';
+}
+
+function formatHoursSummary(schedules) {
+    if (!schedules || schedules.length === 0) return 'Not configured';
+
+    if (schedules.length === 1) {
+        const s = schedules[0];
+        return `${formatTime12(s.open)} – ${formatTime12(s.close)}, every day`;
+    }
+
+    // Multi-schedule: render compactly, e.g. "Mon–Fri 10:00 AM – 9:00 PM · Sat–Sun 10:00 AM – 6:00 PM"
+    const parts = schedules.map(s => {
+        const days = DAY_KEYS
+            .filter(d => s.days.includes(d))
+            .map(d => DAY_SHORT[DAY_KEYS.indexOf(d)]);
+        return `${condenseDays(days)} ${formatTime12(s.open)}–${formatTime12(s.close)}`;
+    });
+    return parts.join(' · ');
+}
+
+function condenseDays(days) {
+    if (days.length === 1) return days[0];
+    if (days.length === 7) return 'Every day';
+    // Quick run of consecutive days, e.g. ['Mon','Tue','Wed','Thu','Fri'] → 'Mon–Fri'
+    const week = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const indexes = days.map(d => week.indexOf(d)).sort((a, b) => a - b);
+    let consecutive = true;
+    for (let i = 1; i < indexes.length; i++) {
+        if (indexes[i] !== indexes[i - 1] + 1) { consecutive = false; break; }
+    }
+    if (consecutive) return `${days[0]}–${days[days.length - 1]}`;
+    return days.join(', ');
+}
+
+function formatTime12(hhmm) {
+    if (!hhmm) return '';
+    const [h, m] = hhmm.split(':').map(Number);
+    const ap = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+}

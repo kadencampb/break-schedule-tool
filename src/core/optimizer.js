@@ -31,7 +31,7 @@ export function findOptimalBreakTime(params) {
     const {
         empName, empSchedule, idealTime, breakDuration, breakSlot,
         dept, subdept, group, breaks, employeeSchedules,
-        startOfDay, endOfDay, advSettings, log
+        startOfDay, endOfDay, advSettings, log, onEvent
     } = params;
 
     // Build candidate times: ideal + delays + early offsets
@@ -50,6 +50,7 @@ export function findOptimalBreakTime(params) {
     if (validCandidates.length === 0) {
         const fallback = clampToSegment(empSchedule, idealTime, breakDuration);
         log(`  [FALLBACK] ${empName}: no valid window near ideal ${minutesToTime(idealTime)}, using ${minutesToTime(fallback)}`);
+        if (onEvent) onEvent({ type: 'placed', name: empName, slot: breakSlot, time: fallback, ideal: idealTime, fallback: true });
         return { bestTime: fallback, bestScore: -1 };
     }
 
@@ -102,6 +103,35 @@ export function findOptimalBreakTime(params) {
             bestVec = vec;
             bestTime = testTime;
         }
+    }
+
+    if (onEvent) {
+        // Detect "stagger" — was someone else already on break at the ideal time?
+        let conflictedWith = null;
+        if (bestTime !== idealTime) {
+            for (const [otherName, otherBreaks] of Object.entries(breaks)) {
+                if (otherName === empName) continue;
+                for (const t of Object.values(otherBreaks)) {
+                    if (t == null) continue;
+                    // Other break is "at the ideal" if its window covers the ideal time
+                    const otherDur = (otherBreaks.meal === t) ? 30 : 15;
+                    if (idealTime >= t && idealTime < t + otherDur) {
+                        conflictedWith = otherName;
+                        break;
+                    }
+                }
+                if (conflictedWith) break;
+            }
+        }
+        onEvent({
+            type: 'placed',
+            name: empName,
+            slot: breakSlot,
+            time: bestTime,
+            ideal: idealTime,
+            shiftedBy: bestTime - idealTime,
+            conflictedWith
+        });
     }
 
     return { bestTime, bestScore: bestVec ? bestVec[0] : -1 };

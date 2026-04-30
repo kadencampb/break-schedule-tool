@@ -7,11 +7,11 @@ const BFG_STEP        = 15;    // Minutes per cell
 const BFG_MAX_OFFSET  = 105;   // Cap each side at 7 cells = 105 min
 
 // Meal graphic: 16 cells (15 min each) spanning 2h to 6h after clock-in, with a
-// 2-cell highlight (30 min meal, width set in CSS) draggable between 3:00 (180)
+// 2-cell highlight (30 min meal, width set in CSS) draggable between 2:45 (165)
 // and 4:45 (285). The axis starts at 2h, so cell index = (offset - 120) / 15.
 const MEAL_CELL_COUNT     = 16;
 const MEAL_AXIS_START_MIN = 120;   // 2h after clock-in
-const MEAL_MIN_OFFSET     = 180;   // 3:00
+const MEAL_MIN_OFFSET     = 165;   // 2:45
 const MEAL_MAX_OFFSET     = 285;   // 4:45
 
 /**

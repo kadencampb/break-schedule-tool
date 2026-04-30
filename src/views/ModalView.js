@@ -1,5 +1,8 @@
 import { BaseView } from './BaseView.js';
-import { DEPARTMENT_REGISTRY } from '../core/constants.js';
+// Department registry was retired in favor of auto-detected groups in the
+// wizard's Departments step. This legacy modal renders an empty picker if it
+// happens to be opened — its features now live in the wizard.
+const DEPARTMENT_REGISTRY = {};
 
 /**
  * ModalView — manages the add/edit coverage group modal.

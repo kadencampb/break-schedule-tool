@@ -88,6 +88,7 @@ export function scheduleBreaks(schedule, options = {}) {
     const enableLogging  = options.enableLogging !== false;
     const dataStart      = options.dataStart      ?? 7;
     const shiftCol       = options.shiftColumnIndex ?? 3;
+    const onEvent        = options.onEvent || null;   // optional instrumentation hook
 
     const log = enableLogging ? (...args) => console.log(...args) : () => {}; // eslint-disable-line no-console
 
@@ -200,7 +201,7 @@ export function scheduleBreaks(schedule, options = {}) {
             breakSlot: 'meal',
             dept, subdept, group, breaks,
             employeeSchedules, startOfDay, endOfDay,
-            advSettings: mealAdvSettings, log
+            advSettings: mealAdvSettings, log, onEvent
         });
         breaks[name].meal = meal1Time;
 
@@ -265,7 +266,7 @@ export function scheduleBreaks(schedule, options = {}) {
             breaks[name][`rest${k}`] = scheduleRestBreak(
                 name, empSchedule, idealRest, `rest${k}`,
                 dept, subdept, group, breaks, employeeSchedules,
-                startOfDay, endOfDay, advSettings, log
+                startOfDay, endOfDay, advSettings, log, onEvent
             );
         }
     }
@@ -274,11 +275,14 @@ export function scheduleBreaks(schedule, options = {}) {
     for (const name of employeeOrder) {
         const empSchedule = employeeSchedules.get(name);
         if (empSchedule._secondMealTime != null) {
-            // Store the second meal in rest3 slot (only one of rest3 or second meal is needed,
-            // since rest3 only applies to shifts ≥ 10 hours worked, and second meal only applies
-            // to shifts > 9:45 — they coexist only for 10+ hour shifts, handled explicitly here)
             if (breaks[name].rest3 == null) {
                 breaks[name].rest3 = empSchedule._secondMealTime;
+                if (onEvent) onEvent({
+                    type: 'placed', name, slot: 'rest3',
+                    time: empSchedule._secondMealTime,
+                    ideal: empSchedule._secondMealTime, shiftedBy: 0,
+                    isSecondMeal: true
+                });
             }
             delete empSchedule._secondMealTime;
         }
@@ -288,7 +292,7 @@ export function scheduleBreaks(schedule, options = {}) {
     // STEP 3: SWAP BREAKS TO PRESERVE SCHEDULE ORDER
     // =========================================================
 
-    swapBreaksForScheduleOrder(employeeOrder, employeeSchedules, breaks, groups, startOfDay, endOfDay, log);
+    swapBreaksForScheduleOrder(employeeOrder, employeeSchedules, breaks, groups, startOfDay, endOfDay, log, onEvent);
 
     // =========================================================
     // BUILD SEGMENTS FOR WRITE-BACK
@@ -321,13 +325,18 @@ export function scheduleBreaks(schedule, options = {}) {
 function scheduleRestBreak(
     name, empSchedule, idealTime, slot,
     dept, subdept, group, breaks, employeeSchedules,
-    startOfDay, endOfDay, advSettings, log
+    startOfDay, endOfDay, advSettings, log, onEvent
 ) {
     if (!group) {
         // No optimization: clamp to the nearest valid segment window
-        return empSchedule.isValidBreakWindow(idealTime, 15)
+        const bestTime = empSchedule.isValidBreakWindow(idealTime, 15)
             ? idealTime
             : findNearestValidWindow(empSchedule, idealTime, 15);
+        if (onEvent) onEvent({
+            type: 'placed', name, slot, time: bestTime,
+            ideal: idealTime, shiftedBy: bestTime - idealTime, conflictedWith: null
+        });
+        return bestTime;
     }
 
     const { bestTime } = findOptimalBreakTime({
@@ -339,7 +348,7 @@ function scheduleRestBreak(
         dept, subdept, group, breaks,
         employeeSchedules,
         startOfDay, endOfDay,
-        advSettings, log
+        advSettings, log, onEvent
     });
     return bestTime;
 }
@@ -360,7 +369,7 @@ function findNearestValidWindow(empSchedule, idealTime, duration) {
  * This produces a more readable schedule where earlier-listed employees get earlier breaks.
  */
 function swapBreaksForScheduleOrder(
-    employeeOrder, employeeSchedules, breaks, groups, startOfDay, endOfDay, log
+    employeeOrder, employeeSchedules, breaks, groups, startOfDay, endOfDay, log, onEvent
 ) {
     // Group employees by dept|job
     const byDept = {};
@@ -411,6 +420,7 @@ function swapBreaksForScheduleOrder(
 
                     if (identical) {
                         log(`[SWAP] ${empA} ↔ ${empB} (${subdept}): ${slot} swapped (${minutesToTime(timeA)} ↔ ${minutesToTime(timeB)})`);
+                        if (onEvent) onEvent({ type: 'swap', empA, empB, slot, timeA, timeB });
                     } else {
                         // Revert
                         breaks[empA][slot] = timeA;
