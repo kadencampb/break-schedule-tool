@@ -268,14 +268,23 @@ body {
     background: var(--group-color);
 }
 
-/* ── "Enable staggering" header above the dept list ────────────────────── */
+/* ── Section labels ("Department groups" / "Departments") ──────────────── */
 
-.wizard-dept-stagger-header {
+.wizard-dept-section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    color: var(--wiz-text-muted);
+}
+
+.wizard-dept-section-header {
     display: flex;
-    justify-content: flex-end;
-    padding: 0 0.4rem 0.35rem 0;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 0.5rem 0.35rem 0.2rem;
     border-bottom: 1px dashed var(--wiz-border);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
 .wizard-dept-stagger-label {
@@ -379,15 +388,6 @@ body {
     flex-direction: column;
     gap: 0.35rem;
     padding: 0.25rem 0;
-}
-
-.wizard-dept-standalone-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--wiz-text-muted);
-    font-weight: 600;
-    margin: 0.4rem 0 0.25rem 0.2rem;
 }
 
 /* Drag state on individual dept items */
@@ -742,39 +742,6 @@ body {
 
 /* ── Tutorial list (export-help) ────────────────────────────────────────── */
 
-.wizard-tutorial-list {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-}
-
-.wizard-tutorial-list li {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    background: #fafbfc;
-    border-radius: 12px;
-    padding: 0.85rem 1rem;
-    border: 1px solid var(--wiz-border);
-}
-
-.wizard-tutorial-num {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    background: var(--wiz-green);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-}
-
 /* ── Department list ────────────────────────────────────────────────────── */
 
 .wizard-dept-list {
@@ -1017,36 +984,6 @@ body {
 
 /* ── Summary cards (review) ─────────────────────────────────────────────── */
 
-.wizard-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-}
-
-.wizard-summary-card {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.1rem 1.25rem;
-    border-radius: 14px;
-    background: var(--wiz-green-tint);
-    border: 1px solid rgba(47, 133, 90, 0.15);
-}
-
-.wizard-summary-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--wiz-green);
-    font-size: 1.2rem;
-    flex-shrink: 0;
-}
-
 .wizard-summary-label {
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -1059,14 +996,6 @@ body {
 .wizard-summary-value { font-weight: 600; color: var(--wiz-text); }
 
 /* ── Running spinner ────────────────────────────────────────────────────── */
-
-.wizard-running-status {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    justify-content: center;
-}
 
 .wizard-spinner {
     width: 32px;
@@ -1188,9 +1117,9 @@ body {
 
 .wizard-root[data-layout="split"] .wizard-step {
     display: grid;
-    grid-template-columns: 400px 1fr;
+    grid-template-columns: 460px 1fr;
     gap: 1.5rem;
-    max-width: 1320px;
+    max-width: 1380px;
     width: 100%;
     height: calc(100vh - 3rem);
     max-height: 940px;
@@ -1209,36 +1138,46 @@ body {
 .wizard-sidebar-content {
     flex: 1;
     overflow-y: auto;
-    padding: 2rem 1.75rem;
+    padding: 2rem 1.75rem 0;
     display: flex;
     flex-direction: column;
 }
 
 .wizard-sidebar-eyebrow {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--wiz-green);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
 }
 
 .wizard-sidebar-title {
-    font-size: 1.4rem;
+    font-size: 1.7rem;
     font-weight: 700;
-    margin: 0 0 0.4rem;
-    letter-spacing: -0.01em;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
 }
 
 .wizard-sidebar-sub {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--wiz-text-muted);
-    line-height: 1.5;
+    line-height: 1.55;
     margin: 0 0 1.25rem;
 }
 
-/* Push nav buttons to the bottom of the sidebar */
-.wizard-sidebar-content .wizard-nav { margin-top: auto; }
+/* Pin nav buttons to the bottom of the sidebar so their position stays
+   consistent across steps even when the sidebar content scrolls. */
+.wizard-sidebar-content .wizard-nav {
+    margin: auto -1.75rem 0;
+    padding: 1rem 1.75rem 1.5rem;
+    position: sticky;
+    bottom: 0;
+    background: var(--wiz-card-bg);
+    border-top: 1px solid var(--wiz-border);
+    z-index: 2;
+}
 
 /* ── Stage (right pane) ────────────────────────────────────────────────── */
 
@@ -1546,7 +1485,7 @@ body {
 .wizard-summary-row {
     display: flex;
     gap: 0.75rem;
-    align-items: center;
+    align-items: flex-start;
     padding: 0.65rem 0.85rem;
     background: var(--wiz-green-tint);
     border-radius: 12px;
@@ -1559,6 +1498,7 @@ body {
     flex-shrink: 0;
     width: 18px;
     text-align: center;
+    padding-top: 0.15rem;
 }
 
 .wizard-summary-body {
@@ -1579,9 +1519,7 @@ body {
     font-weight: 600;
     color: var(--wiz-text);
     font-size: 0.85rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.4;
 }
 
 .wizard-summary-change {
@@ -1627,30 +1565,97 @@ body {
     min-height: 480px;
 }
 
+/* Tutorial intro card — shown for the first sub-step before any mock UKG
+   screen. Reminds the user that the illustrations are a guide, not the app. */
+.ukg-mock-intro {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2.5rem 2rem;
+    background: var(--ukg-bg);
+}
+
+.ukg-mock-intro-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(27, 94, 63, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ukg-green);
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.ukg-mock-intro h3 {
+    margin: 0 0 0.65rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ukg-text);
+}
+
+.ukg-mock-intro p {
+    margin: 0 0 0.75rem;
+    color: var(--ukg-mute);
+    line-height: 1.55;
+    max-width: 380px;
+    font-size: 0.95rem;
+}
+
+.ukg-mock-intro p strong { color: var(--ukg-text); }
+
+.ukg-mock-intro-cta {
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--wiz-green) 0%, var(--wiz-green-deep) 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(47, 133, 90, 0.35);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ukg-mock-intro-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(47, 133, 90, 0.45);
+}
+
 .ukg-topbar {
     background: var(--ukg-green);
     color: #fff;
-    padding: 0 1rem;
+    padding: 0 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 44px;
+    height: 64px;
+    position: relative;
+    z-index: 4;
 }
 
 .ukg-topbar-left, .ukg-topbar-right {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.4rem;
 }
 
 .ukg-hamburger {
-    width: 24px;
-    height: 24px;
+    width: 38px;
+    height: 38px;
     background: transparent;
     border: none;
     padding: 0;
     color: #fff;
-    font-size: 0.95rem;
+    font-size: 1.4rem;
     cursor: default;
     display: flex;
     align-items: center;
@@ -1658,17 +1663,69 @@ body {
 }
 
 .ukg-topbar-icon {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.15rem;
     line-height: 1;
 }
 
 .ukg-topbar-title {
     color: #fff;
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 500;
     letter-spacing: 0.01em;
-    margin-left: 0.25rem;
+    margin-left: 0.4rem;
+}
+
+/* When the hamburger is the tutorial target, drop a bouncing "Click here"
+   arrow underneath it so attention is unmissable on the green topbar. */
+.ukg-hamburger.is-target {
+    overflow: visible;
+}
+
+.ukg-hamburger.is-target::after {
+    content: 'Click here';
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 0;
+    background: var(--wiz-green);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(47, 133, 90, 0.45);
+    animation: ukg-arrow-bounce 1.1s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.ukg-hamburger.is-target::before {
+    content: '';
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 9px solid var(--wiz-green);
+    animation: ukg-arrow-bounce-center 1.1s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 4;
+}
+
+@keyframes ukg-arrow-bounce {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(5px); }
+}
+
+@keyframes ukg-arrow-bounce-center {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(5px); }
 }
 
 .ukg-iconbtn-close {
@@ -1818,7 +1875,7 @@ body {
 
 .ukg-menu-overlay {
     position: absolute;
-    inset: 44px 0 0 0;
+    inset: 64px 0 0 0;
     display: flex;
 }
 
@@ -1864,8 +1921,9 @@ body {
 
 .ukg-menu-sub {
     padding: 0.5rem 0.5rem 0.5rem 1.2rem;
-    color: var(--ukg-mute);
-    font-size: 0.78rem;
+    color: var(--ukg-text);
+    font-size: 0.82rem;
+    font-weight: 500;
     border-radius: 4px;
 }
 
@@ -1974,11 +2032,11 @@ body {
 }
 
 /* Right-side Select Report panel overlays the entire canvas (covers the
-   green nav bar on the right edge), like the real UKG behavior. The body
-   reserves padding on the right so tiles aren't hidden underneath it. */
+   green nav bar on the right edge), like the real UKG behavior. The tile
+   grid keeps its full width so tiles don't reflow when the sidebar opens —
+   the sidebar simply layers over them. */
 .ukg-page-body.with-sidebar {
     grid-template-columns: 1fr;
-    padding-right: calc(240px + 0.85rem);
 }
 
 .ukg-side-panel {
@@ -2099,12 +2157,20 @@ body {
 
 /* ── Highlight pulse on the target element ─────────────────────────────── */
 
+/* The pulse stacks a white inner ring (so the highlight is visible on dark
+   backgrounds like the green topbar) inside the green ring + outer halo. */
 .ukg-mock .is-target {
     position: relative;
     z-index: 3;
-    box-shadow: 0 0 0 3px rgba(47, 133, 90, 0.5), 0 0 0 7px rgba(47, 133, 90, 0.18);
     border-radius: 6px;
-    animation: ukg-pulse 1.6s ease-in-out infinite;
+    cursor: pointer;
+    animation: ukg-pulse 1.3s ease-in-out infinite;
+}
+
+/* Slight scale-up on hover so the user feels the click affordance */
+.ukg-mock .is-target:hover {
+    transform: scale(1.04);
+    transition: transform 120ms ease;
 }
 
 .ukg-mock .is-target-child {
@@ -2113,8 +2179,20 @@ body {
 }
 
 @keyframes ukg-pulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(47, 133, 90, 0.5), 0 0 0 7px rgba(47, 133, 90, 0.18); }
-    50%      { box-shadow: 0 0 0 4px rgba(47, 133, 90, 0.7), 0 0 0 12px rgba(47, 133, 90, 0.10); }
+    0%, 100% {
+        box-shadow:
+            0 0 0 2px #fff,
+            0 0 0 5px var(--wiz-green),
+            0 0 0 11px rgba(47, 133, 90, 0.35),
+            0 0 22px rgba(47, 133, 90, 0.5);
+    }
+    50% {
+        box-shadow:
+            0 0 0 2px #fff,
+            0 0 0 6px var(--wiz-green),
+            0 0 0 18px rgba(47, 133, 90, 0.15),
+            0 0 36px rgba(47, 133, 90, 0.75);
+    }
 }
 
 /* ── Tutorial progress dots ────────────────────────────────────────────── */
@@ -2234,6 +2312,18 @@ body {
 .wizard-customize-body .bfg-segment:hover:not(.is-active) {
     background: rgba(47, 133, 90, 0.1);
     color: var(--wiz-green);
+}
+
+/* Brief highlight when the modal scrolls to a deep-linked section */
+.wizard-customize-body .is-customize-flash {
+    animation: wiz-customize-flash 1.4s ease;
+    border-radius: 6px;
+}
+
+@keyframes wiz-customize-flash {
+    0%   { background: rgba(47, 133, 90, 0); }
+    20%  { background: rgba(47, 133, 90, 0.18); }
+    100% { background: rgba(47, 133, 90, 0); }
 }
 
 /* Tame Bootstrap's outline-warning Reset button to match the wizard palette */

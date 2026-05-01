@@ -55,25 +55,25 @@ function renderSidebar(el, state, callbacks) {
                 icon: 'fas fa-coffee',
                 label: 'Rest break window',
                 value: `${120 - adv.maxEarly}–${120 + adv.maxDelay}m after period start`,
-                action: 'customize'
+                action: 'customize:rest'
             })}
             ${summaryRow({
                 icon: 'fas fa-utensils',
                 label: 'Meal placement',
                 value: `${formatMinutes(adv.idealMealOffset)} after clock-in`,
-                action: 'customize'
+                action: 'customize:meal'
             })}
             ${summaryRow({
                 icon: 'fas fa-users',
                 label: 'Coverage priority',
                 value: formatDeptMode(adv.deptCoverageMode),
-                action: 'customize'
+                action: 'customize:dept-coverage'
             })}
             ${summaryRow({
                 icon: 'fas fa-balance-scale',
                 label: 'Time vs coverage',
                 value: formatTimeMode(adv.timeCoverageMode),
-                action: 'customize'
+                action: 'customize:time-coverage'
             })}
         </div>
 
@@ -87,12 +87,17 @@ function renderSidebar(el, state, callbacks) {
         </div>
     `;
 
-    // Wire "Change" links on each summary row
+    // Wire "Change" links. "customize:<anchor>" opens the advanced-settings
+    // modal scrolled to the matching section; anything else jumps to a step.
     el.querySelectorAll('[data-change]').forEach(btn => {
         btn.addEventListener('click', () => {
             const target = btn.getAttribute('data-change');
-            if (target === 'customize') callbacks.onCustomize();
-            else                         callbacks.onChangeStep(target);
+            if (target.startsWith('customize')) {
+                const anchor = target.split(':')[1] || null;
+                callbacks.onCustomize(anchor);
+            } else {
+                callbacks.onChangeStep(target);
+            }
         });
     });
 
@@ -145,14 +150,14 @@ function formatHoursSummary(schedules) {
         return `${formatTime12(s.open)} – ${formatTime12(s.close)}, every day`;
     }
 
-    // Multi-schedule: render compactly, e.g. "Mon–Fri 10:00 AM – 9:00 PM · Sat–Sun 10:00 AM – 6:00 PM"
+    // Multi-schedule: each group on its own line so long combinations don't truncate
     const parts = schedules.map(s => {
         const days = DAY_KEYS
             .filter(d => s.days.includes(d))
             .map(d => DAY_SHORT[DAY_KEYS.indexOf(d)]);
         return `${condenseDays(days)} ${formatTime12(s.open)}–${formatTime12(s.close)}`;
     });
-    return parts.join(' · ');
+    return parts.join('<br>');
 }
 
 function condenseDays(days) {

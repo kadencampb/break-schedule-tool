@@ -224,10 +224,12 @@ describe('SettingsModel — advanced settings', () => {
         expect(result.proximityWeight).toBe(DEFAULT_ADVANCED_SETTINGS.proximityWeight);
     });
 
-    it('getAdvancedSettings() caches — second call returns same reference', () => {
+    it('getAdvancedSettings() reads through to storage on every call', () => {
         const first = settings.getAdvancedSettings();
+        // Mutating the returned object must not leak into the model's next read.
+        first.maxEarly = 999;
         const second = settings.getAdvancedSettings();
-        expect(first).toBe(second);
+        expect(second.maxEarly).toBe(DEFAULT_ADVANCED_SETTINGS.maxEarly);
     });
 
     it('setAdvancedSettings() persists merged settings', () => {

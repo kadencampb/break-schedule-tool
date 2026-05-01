@@ -21,9 +21,6 @@ export class SettingsModel extends BaseModel {
     constructor(storage) {
         super();
         this._storage = storage;
-        this._hours = null;
-        this._advanced = null;
-        this._state = null;
     }
 
     // -------------------------------------------------------------------------
@@ -35,10 +32,7 @@ export class SettingsModel extends BaseModel {
      * @returns {{ monday: {start, end}, tuesday: ..., ... }}
      */
     getHoursByDay() {
-        if (!this._hours) {
-            this._hours = this._storage.get('operatingHours', DEFAULT_HOURS_BY_DAY);
-        }
-        return this._hours;
+        return this._storage.get('operatingHours', DEFAULT_HOURS_BY_DAY);
     }
 
     /**
@@ -46,7 +40,6 @@ export class SettingsModel extends BaseModel {
      * @param {{ [day]: { start: string, end: string } }} hours
      */
     setHoursByDay(hours) {
-        this._hours = hours;
         this._storage.set('operatingHours', hours);
         this.notify('change:hours', hours);
     }
@@ -74,14 +67,13 @@ export class SettingsModel extends BaseModel {
     // -------------------------------------------------------------------------
 
     /**
-     * Get advanced scheduling settings.
+     * Get advanced scheduling settings. Reads from storage every call so multiple
+     * SettingsModel instances (e.g. one inside the wizard, one inside the legacy
+     * shell) stay in sync when either side writes.
      * @returns {{ maxEarly, maxDelay, deptWeightMultiplier, proximityWeight }}
      */
     getAdvancedSettings() {
-        if (!this._advanced) {
-            this._advanced = { ...DEFAULT_ADVANCED_SETTINGS, ...this._storage.get('advancedSettings', {}) };
-        }
-        return this._advanced;
+        return { ...DEFAULT_ADVANCED_SETTINGS, ...this._storage.get('advancedSettings', {}) };
     }
 
     /**
@@ -89,9 +81,9 @@ export class SettingsModel extends BaseModel {
      * @param {{ maxEarly, maxDelay, deptWeightMultiplier, proximityWeight }} settings
      */
     setAdvancedSettings(settings) {
-        this._advanced = { ...DEFAULT_ADVANCED_SETTINGS, ...settings };
-        this._storage.set('advancedSettings', this._advanced);
-        this.notify('change:advanced', this._advanced);
+        const merged = { ...DEFAULT_ADVANCED_SETTINGS, ...settings };
+        this._storage.set('advancedSettings', merged);
+        this.notify('change:advanced', merged);
     }
 
     // -------------------------------------------------------------------------
@@ -100,15 +92,11 @@ export class SettingsModel extends BaseModel {
 
     /** @returns {string} */
     getSelectedState() {
-        if (!this._state) {
-            this._state = this._storage.get('selectedState', 'california');
-        }
-        return this._state;
+        return this._storage.get('selectedState', 'california');
     }
 
     /** @param {string} state */
     setSelectedState(state) {
-        this._state = state;
         this._storage.set('selectedState', state);
         this.notify('change:state', state);
     }

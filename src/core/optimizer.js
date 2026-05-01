@@ -157,7 +157,9 @@ function buildScoreVector(deptCount, groupCount, proximity, deptMode, timeMode) 
         primaryCov = deptCount;
         secondaryCov = 0;
     } else if (deptMode === 'group') {
-        primaryCov = groupCount;
+        // For standalone (ungrouped) depts, groupCount is always 0. Fall back to
+        // deptCount so the score still differentiates candidates instead of tying.
+        primaryCov = groupCount > 0 ? groupCount : deptCount;
         secondaryCov = 0;
     } else { // 'balanced'
         primaryCov = deptCount;

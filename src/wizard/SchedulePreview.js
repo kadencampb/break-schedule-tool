@@ -1,4 +1,5 @@
 import { minutesToTime } from '../core/helpers.js';
+import { escapeHtml as escape, colorForGroupId } from './util.js';
 
 /**
  * SchedulePreview — concise visual representation of the uploaded schedule.
@@ -16,11 +17,6 @@ import { minutesToTime } from '../core/helpers.js';
 const CSS_BREAK = 'wizard-preview-break';
 const CSS_BREAK_MEAL = 'wizard-preview-break-meal';
 
-// Group color palette mirrors DepartmentsStep so the preview cards visually
-// echo the sidebar's grouping scheme.
-const GROUP_PALETTE = ['#2f855a', '#3182ce', '#805ad5', '#dd6b20', '#d53f8c', '#0987a0', '#b7791f', '#5a67d8'];
-
-function colorForGroup(id) { return GROUP_PALETTE[id % GROUP_PALETTE.length]; }
 
 export function renderPreview(container, state) {
     if (!container) return;
@@ -121,7 +117,7 @@ function renderDept(dept, selected, breaks, groupByDept) {
     const key = `${dept.main}|${dept.sub}`;
     const isSelected = selected.has(key);
     const group = groupByDept ? groupByDept.get(key) : null;
-    const groupColor = group ? colorForGroup(group.id) : null;
+    const groupColor = group ? colorForGroupId(group.id) : null;
     const employees = dept.employees;
 
     const styleAttr = groupColor ? `style="--preview-group-color: ${groupColor};"` : '';
@@ -217,12 +213,6 @@ function formatShift(raw) {
     return raw
         .replace(/(\d)(AM|PM)/gi, '$1 $2')
         .replace(/\s*-\s*/, ' – ');
-}
-
-function escape(s) {
-    const div = document.createElement('div');
-    div.textContent = String(s ?? '');
-    return div.innerHTML;
 }
 
 function cssEscape(s) {

@@ -1,4 +1,5 @@
 import { renderPreview } from '../SchedulePreview.js';
+import { escapeHtml as escape } from '../util.js';
 
 export const LAYOUT = 'split';
 
@@ -215,8 +216,3 @@ function formatTime(hhmm) {
     return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
 }
 
-function escape(s) {
-    const div = document.createElement('div');
-    div.textContent = String(s ?? '');
-    return div.innerHTML;
-}

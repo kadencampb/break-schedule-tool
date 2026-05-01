@@ -1,4 +1,5 @@
 import { renderPreview } from '../SchedulePreview.js';
+import { escapeHtml as escape, colorForGroupId } from '../util.js';
 
 export const LAYOUT = 'split';
 
@@ -39,18 +40,17 @@ function renderSidebar(el, state, callbacks) {
     }
     const standaloneDepts = detected.filter(d => !groupedKeys.has(`${d.main}|${d.sub}`));
 
-    const colorFor = (id) => {
-        const palette = ['#2f855a', '#3182ce', '#805ad5', '#dd6b20', '#d53f8c', '#0987a0', '#b7791f', '#5a67d8'];
-        return palette[id % palette.length];
-    };
 
     el.innerHTML = `
         <div class="wizard-sidebar-eyebrow">Step 3 of 6</div>
-        <h2 class="wizard-sidebar-title">Customer facing departments</h2>
+        <h2 class="wizard-sidebar-title">Which departments are customer facing?</h2>
         <p class="wizard-sidebar-sub">
-            Select departments to intelligently stagger breaks for that department.
-            Drag and drop departments to create a department group. Breaks will be
-            staggered across the entire group as if it were one department.
+            Breaks will be intelligently staggered in customer facing departments.
+        </p>
+        <p class="wizard-sidebar-sub">
+            <strong>Select departments below to mark them as customer facing.</strong>
+            You can also drag and drop departments together to create a group.
+            Breaks will be staggered across the entire group as if it were one department.
         </p>
 
         <div class="wizard-row">
@@ -63,16 +63,18 @@ function renderSidebar(el, state, callbacks) {
             ` : ''}
         </div>
 
-        <div class="wizard-dept-stagger-header">
-            <span class="wizard-dept-stagger-label">Enable staggering</span>
-        </div>
-
         <div class="wizard-dept-area" data-drop-standalone>
-            ${groupRows.map(({ group, depts }) => groupBoxHtml(group, depts, selected, colorFor)).join('')}
+            ${groupRows.length > 0 ? `
+                <div class="wizard-dept-section-label">Department groups</div>
+                ${groupRows.map(({ group, depts }) => groupBoxHtml(group, depts, selected, colorForGroupId)).join('')}
+            ` : ''}
 
             ${standaloneDepts.length > 0 ? `
                 <div class="wizard-dept-standalone">
-                    ${groupRows.length > 0 ? '<div class="wizard-dept-standalone-label">Standalone</div>' : ''}
+                    <div class="wizard-dept-section-header">
+                        <span class="wizard-dept-section-label">Departments</span>
+                        <span class="wizard-dept-stagger-label">Enable staggering</span>
+                    </div>
                     ${standaloneDepts.map(d => standaloneItemHtml(d, selected)).join('')}
                 </div>
             ` : ''}
@@ -254,8 +256,3 @@ function attachListeners(el, callbacks, detectedKeys) {
     });
 }
 
-function escape(s) {
-    const div = document.createElement('div');
-    div.textContent = String(s ?? '');
-    return div.innerHTML;
-}

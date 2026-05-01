@@ -28,14 +28,19 @@ export function renderDone(stepEl, state, callbacks) {
             <i class="fas fa-download"></i> Download Schedule
         </button>
 
+        <button type="button" class="wizard-btn wizard-btn-ghost wizard-btn-block" data-action="adjust">
+            <i class="fas fa-sliders-h"></i> Adjust settings &amp; re-run
+        </button>
+
         <button type="button" class="wizard-btn wizard-btn-ghost wizard-btn-block" data-action="restart">
-            Run another schedule
+            <i class="fas fa-redo"></i> Run another schedule
         </button>
     `;
 
     renderPreview(stage, state);
 
     sidebar.querySelector('[data-action="download"]')?.addEventListener('click', callbacks.onDownload);
+    sidebar.querySelector('[data-action="adjust"]')?.addEventListener('click', callbacks.onAdjustSettings);
     sidebar.querySelector('[data-action="restart"]')?.addEventListener('click', callbacks.onRestart);
 }
 

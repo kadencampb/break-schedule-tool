@@ -50,9 +50,12 @@ function ensureOverlay() {
  * (slider events, segmented control clicks, etc.) continue to fire untouched.
  *
  * @param {Object} options
- * @param {Function} [options.onClose] - called after the modal closes
+ * @param {Function} [options.onClose]  - called after the modal closes
+ * @param {string}   [options.anchor]   - data-customize-anchor key of a section
+ *                                        to scroll into view (e.g. 'rest', 'meal',
+ *                                        'dept-coverage', 'time-coverage')
  */
-export function openCustomize({ onClose } = {}) {
+export function openCustomize({ onClose, anchor } = {}) {
     const collapse = document.getElementById('advancedSettingsCollapse');
     if (!collapse) return;
     const node = collapse.firstElementChild;
@@ -67,6 +70,24 @@ export function openCustomize({ onClose } = {}) {
     slot.appendChild(node);
     ov.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+
+    if (anchor) {
+        // After the modal animation settles, scroll the requested section into
+        // view and briefly highlight it so the user sees the connection.
+        requestAnimationFrame(() => {
+            const target = node.querySelector(`[data-customize-anchor="${anchor}"]`);
+            if (!target) return;
+            const body = ov.querySelector('.wizard-customize-body');
+            const targetRect = target.getBoundingClientRect();
+            const bodyRect = body.getBoundingClientRect();
+            body.scrollTo({
+                top: body.scrollTop + (targetRect.top - bodyRect.top) - 16,
+                behavior: 'smooth'
+            });
+            target.classList.add('is-customize-flash');
+            setTimeout(() => target.classList.remove('is-customize-flash'), 1400);
+        });
+    }
 }
 
 export function closeCustomize() {

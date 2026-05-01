@@ -48,7 +48,7 @@ export const DEFAULT_ADVANCED_SETTINGS = {
     maxDelay: 60,
     deptCoverageMode: 'balanced',
     timeCoverageMode: 'balanced',
-    idealMealOffset: 270
+    idealMealOffset: 240
 };
 
 /**

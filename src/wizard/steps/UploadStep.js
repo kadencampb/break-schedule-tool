@@ -1,3 +1,5 @@
+import { escapeHtml as escape } from '../util.js';
+
 /**
  * UploadStep — file picker / drag-drop for the .xlsx export.
  * On select: parses + transitions to departments step.
@@ -9,7 +11,7 @@ export function renderUpload(el, state, callbacks) {
     el.innerHTML = `
         <div class="wizard-card">
             <div class="wizard-card-eyebrow">Step 1 of 6</div>
-            <h2 class="wizard-card-title">Select your schedule</h2>
+            <h2 class="wizard-card-title">Drag and drop the daily schedule</h2>
             <p class="wizard-card-subtitle">
                 Drop your <code>Custom Daily Schedule</code> .xlsx file here, or click to browse.
             </p>
@@ -75,12 +77,6 @@ export function renderUpload(el, state, callbacks) {
     el.querySelector('[data-action="back"]')?.addEventListener('click', callbacks.onBack);
     el.querySelector('[data-action="continue"]')?.addEventListener('click', callbacks.onContinue);
     el.querySelector('[data-action="help"]')?.addEventListener('click', callbacks.onShowTutorial);
-}
-
-function escape(s) {
-    const div = document.createElement('div');
-    div.textContent = String(s ?? '');
-    return div.innerHTML;
 }
 
 function formatFileSize(bytes) {

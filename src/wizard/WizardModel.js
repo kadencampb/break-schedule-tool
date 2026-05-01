@@ -1,20 +1,23 @@
 import { BaseModel } from '../models/BaseModel.js';
 
 /**
- * WizardModel — state machine for the guided break-scheduling experience.
+ * WizardModel — state machine + persistent state for the guided experience.
  *
- * Keeps the wizard's transient state (uploaded file, parsed rows, current step,
- * department selections) in memory and persists user-preference flags to
- * localStorage via StorageFacade.
+ * Owns:
+ *   • current step + back-nav history (transient)
+ *   • uploaded file metadata + parsed rows (transient)
+ *   • department selection set (persisted)
+ *   • operating-hours schedules (persisted)
+ *   • most recent run result (transient)
  *
- * Existing settings (operating hours, advanced settings, coverage groups) live
- * in their own models — this wizard composes those rather than duplicating them.
+ * Existing settings (advanced settings, coverage groups, per-day hours dict)
+ * live in their own models — this composes them.
  *
  * Events:
  *   'change:step'                — current step transitioned
  *   'change:upload'              — uploaded file or parsed schedule changed
  *   'change:selected-departments'— department selection changed
- *   'change:remember'            — a remember flag toggled
+ *   'change:schedules'           — operating-hours schedule list changed
  *   'change:result'              — scheduler ran and produced a result
  */
 export const STEPS = [
@@ -30,75 +33,38 @@ export const STEPS = [
     'done'
 ];
 
-// Remember-by-default. The UI no longer exposes individual toggles; these
-// flags exist only for internal logic and stay implicitly true.
-export const DEFAULT_REMEMBER = {
-    haveFile:    true,
-    departments: true,
-    hours:       true,
-    settings:    false   // always show the review/customize step
-};
-
 export class WizardModel extends BaseModel {
     /** @param {StorageFacade} storage */
     constructor(storage) {
         super();
         this._storage = storage;
 
-        this._step = 'landing';
+        this._step    = 'landing';
         this._history = [];
-
-        // Schema-versioned remember flags. When defaults change, bump
-        // REMEMBER_SCHEMA_VERSION so users with stale stored values get the new defaults.
-        const REMEMBER_SCHEMA_VERSION = 3;
-        const storedVer = storage.get('wizardRememberVersion', 1);
-        const storedRemember = storage.get('wizardRemember', {});
-        this._remember = storedVer === REMEMBER_SCHEMA_VERSION
-            ? { ...DEFAULT_REMEMBER, ...storedRemember }
-            : { ...DEFAULT_REMEMBER };
-        storage.set('wizardRememberVersion', REMEMBER_SCHEMA_VERSION);
-
         this._selectedDepartments = new Set(storage.get('wizardSelectedDepartments', []));
         this._schedules = storage.get('wizardSchedules', []);
-        this._upload = { file: null, rows: null, date: null, detectedDepartments: [] };
-        this._result = null;
+        this._upload    = blankUpload();
+        this._result    = null;
     }
 
     // ── Step ─────────────────────────────────────────────────────────────────
 
     getStep() { return this._step; }
 
-    /**
-     * Transition to a new step. Pushes current step onto history for back nav.
-     * @param {string} step - One of STEPS
-     */
+    /** Transition to a new step. Pushes the current step onto history for back nav. */
     goTo(step) {
         if (!STEPS.includes(step)) throw new Error(`Unknown wizard step: ${step}`);
         if (step === this._step) return;
         this._history.push(this._step);
         this._step = step;
-        this.notify('change:step', { step, history: [...this._history] });
+        this.notify('change:step', { step });
     }
 
     /** Return to the previous step. No-op if history is empty. */
     back() {
         if (!this._history.length) return;
-        const prev = this._history.pop();
-        this._step = prev;
-        this.notify('change:step', { step: prev, history: [...this._history] });
-    }
-
-    canGoBack() { return this._history.length > 0; }
-
-    // ── Remember flags ───────────────────────────────────────────────────────
-
-    getRemember() { return { ...this._remember }; }
-
-    setRemember(key, value) {
-        if (!(key in this._remember)) return;
-        this._remember[key] = !!value;
-        this._storage.set('wizardRemember', this._remember);
-        this.notify('change:remember', { ...this._remember });
+        this._step = this._history.pop();
+        this.notify('change:step', { step: this._step });
     }
 
     // ── Upload ───────────────────────────────────────────────────────────────
@@ -111,17 +77,17 @@ export class WizardModel extends BaseModel {
     }
 
     clearUpload() {
-        this._upload = { file: null, rows: null, date: null, detectedDepartments: [] };
+        this._upload = blankUpload();
         this.notify('change:upload', this.getUpload());
     }
 
-    // ── Department selection ────────────────────────────────────────────────
+    // ── Department selection ─────────────────────────────────────────────────
 
     getSelectedDepartments() { return new Set(this._selectedDepartments); }
 
     /**
      * Set the active department selection. Persists to localStorage so the
-     * next run can pre-fill the same selection (when remember.departments is on).
+     * next run can pre-fill the same selection.
      * @param {Iterable<string>} keys - "Main|Sub" department keys
      */
     setSelectedDepartments(keys) {
@@ -136,11 +102,7 @@ export class WizardModel extends BaseModel {
         this.setSelectedDepartments(next);
     }
 
-    // ── Operating-hours schedules ──────────────────────────────────────────
-    //
-    // The wizard groups days into named schedules ("Schedule 1: Mon-Fri 10:00-21:00")
-    // for an easier UX than per-day inputs. Stored explicitly here so we can detect
-    // first-run (empty list) vs returning users (schedules already configured).
+    // ── Operating-hours schedules ────────────────────────────────────────────
 
     getSchedules() {
         return this._schedules.map(s => ({ ...s, days: [...s.days] }));
@@ -176,7 +138,7 @@ export class WizardModel extends BaseModel {
         this.notify('change:schedules', this.getSchedules());
     }
 
-    // ── Result ──────────────────────────────────────────────────────────────
+    // ── Result ───────────────────────────────────────────────────────────────
 
     getResult() { return this._result; }
 
@@ -184,4 +146,8 @@ export class WizardModel extends BaseModel {
         this._result = result;
         this.notify('change:result', result);
     }
+}
+
+function blankUpload() {
+    return { file: null, rows: null, date: null, detectedDepartments: [] };
 }

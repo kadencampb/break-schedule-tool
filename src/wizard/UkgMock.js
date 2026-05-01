@@ -57,6 +57,11 @@ const ICON_RUN_REPORT = `
 
 export const TUTORIAL_STEPS = [
     {
+        title: 'Open UKG first',
+        body:  'Sign in to UKG in another tab, then click Next to follow along.',
+        render: renderTutorialIntro
+    },
+    {
         title: 'Open the side menu',
         body:  'Click the hamburger icon in the top-left corner of the home dashboard.',
         render: renderHome
@@ -133,6 +138,21 @@ function dashCard(_title, lines = 6) {
 
 // ── Step renderers ──────────────────────────────────────────────────────────
 
+function renderTutorialIntro() {
+    return `
+        <div class="ukg-mock-intro">
+            <div class="ukg-mock-intro-icon">
+                <i class="fas fa-external-link-alt"></i>
+            </div>
+            <h3>Open UKG in another tab</h3>
+            <p>The next screens show what to click.</p>
+            <button type="button" class="ukg-mock-intro-cta" data-tutorial-action="next">
+                I'm signed in to UKG <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    `;
+}
+
 function renderHome() {
     return `
         <div class="ukg-canvas">
@@ -159,7 +179,7 @@ function renderMenu() {
         { label: 'Time',                expanded: false },
         { label: 'Schedule',            expanded: false },
         { label: 'Workforce Planning',  expanded: false },
-        { label: 'Dataviews & Reports', expanded: true,  target: true },
+        { label: 'Dataviews & Reports', expanded: true  },
         { label: 'My Information',      expanded: false },
         { label: 'Maintenance',         expanded: false }
     ];
@@ -180,14 +200,12 @@ function renderMenu() {
                     <div class="ukg-menu-search"><div class="ukg-skel-bar w-70"></div></div>
                     <ul class="ukg-menu-list">
                         ${items.map(it => `
-                            <li class="ukg-menu-item ${it.target ? 'is-target is-expanded' : ''}">
+                            <li class="ukg-menu-item ${it.expanded ? 'is-expanded' : ''}">
                                 <span>${it.label}</span>
                                 <i class="ukg-caret"></i>
                             </li>
                             ${it.expanded ? `
-                                <li class="ukg-menu-sub ${it.target ? 'is-target-child' : ''}">
-                                    Report Library
-                                </li>
+                                <li class="ukg-menu-sub is-target">Report Library</li>
                             ` : ''}
                         `).join('')}
                     </ul>
@@ -253,10 +271,6 @@ function renderReportLibrary({ openSidebar = false, expandedCustom = false } = {
                             <li>Scheduler</li>
                             <li>Timekeeping</li>
                         </ul>
-                        <div class="ukg-side-footer">
-                            <button class="ukg-pill-btn" aria-hidden="true">Cancel</button>
-                            <button class="ukg-pill-btn ukg-pill-btn-primary" aria-hidden="true">Select</button>
-                        </div>
                     </aside>
                 ` : ''}
             </div>
@@ -281,6 +295,18 @@ function renderForm() {
                     <button class="ukg-tool-btn" aria-hidden="true">
                         <span class="ukg-tool-icon">${ICON_REPORTING_JOBS}</span>
                         <span>Reporting<br>Jobs</span>
+                    </button>
+                    <button class="ukg-tool-btn" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_SELECT_ALL}</span>
+                        <span>Select All</span>
+                    </button>
+                    <button class="ukg-tool-btn ukg-tool-btn-disabled" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_DELETE}</span>
+                        <span>Delete</span>
+                    </button>
+                    <button class="ukg-tool-btn" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_RUN_REPORT}</span>
+                        <span>Run Report</span>
                     </button>
                 </div>
             </div>

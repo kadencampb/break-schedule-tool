@@ -327,18 +327,10 @@ function scheduleRestBreak(
     dept, subdept, group, breaks, employeeSchedules,
     startOfDay, endOfDay, advSettings, log, onEvent
 ) {
-    if (!group) {
-        // No optimization: clamp to the nearest valid segment window
-        const bestTime = empSchedule.isValidBreakWindow(idealTime, 15)
-            ? idealTime
-            : findNearestValidWindow(empSchedule, idealTime, 15);
-        if (onEvent) onEvent({
-            type: 'placed', name, slot, time: bestTime,
-            ideal: idealTime, shiftedBy: bestTime - idealTime, conflictedWith: null
-        });
-        return bestTime;
-    }
-
+    // Always run the optimizer — even when the dept is standalone (no coverage
+    // group), staggering against same-subdept coworkers still matters. The
+    // optimizer handles a null group cleanly: groupCount falls to 0 and the
+    // score collapses to dept-level coverage, which is exactly what we want.
     const { bestTime } = findOptimalBreakTime({
         empName: name,
         empSchedule,

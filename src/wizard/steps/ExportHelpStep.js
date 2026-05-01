@@ -56,4 +56,13 @@ export function renderExportHelp(stepEl, state, callbacks) {
 
     sidebar.querySelector('[data-action="next"]')?.addEventListener('click', callbacks.onTutorialNext);
     sidebar.querySelector('[data-action="prev"]')?.addEventListener('click', callbacks.onTutorialPrev);
+
+    // Clicking the highlighted target advances the tutorial — feels like
+    // actually navigating UKG.
+    stage.querySelectorAll('.is-target').forEach(el => {
+        el.addEventListener('click', callbacks.onTutorialNext);
+    });
+
+    stage.querySelector('[data-tutorial-action="next"]')
+        ?.addEventListener('click', callbacks.onTutorialNext);
 }

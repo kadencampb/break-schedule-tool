@@ -1,11 +1,10 @@
 /**
- * LandingStep — entry point. Hero + Get Started / Continue buttons.
- *
- * If the user has been here before (any wizardRemember flag set or selected
- * departments persisted), show "Continue" alongside "Get Started".
+ * LandingStep — entry point. Hero with Get Started / Next CTA.
+ * Returning users (prior schedules or selections persisted) see "Next" since
+ * they're picking up where they left off.
  */
 export function renderLanding(el, state, callbacks) {
-    const hasPriorRun = state.hasPriorRun;
+    const cta = state.hasPriorRun ? 'Next' : 'Get Started';
     el.innerHTML = `
         <div class="wizard-hero">
             <div class="wizard-hero-mark" aria-hidden="true">
@@ -17,7 +16,7 @@ export function renderLanding(el, state, callbacks) {
             </p>
             <div class="wizard-hero-actions">
                 <button type="button" class="wizard-btn wizard-btn-primary" data-action="start">
-                    <span>${hasPriorRun ? 'Next' : 'Get Started'}</span>
+                    <span>${cta}</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
@@ -26,5 +25,4 @@ export function renderLanding(el, state, callbacks) {
     `;
 
     el.querySelector('[data-action="start"]')?.addEventListener('click', callbacks.onStart);
-    el.querySelector('[data-action="restart"]')?.addEventListener('click', callbacks.onRestart);
 }

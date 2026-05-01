@@ -1,94 +1,91 @@
 import { WizardModel } from './WizardModel.js';
 import { WizardView } from './WizardView.js';
 import { scheduleBreaks } from '../core/BreakScheduler.js';
-import { formatName, parseShiftInterval, timeToMinutes, minutesToTime } from '../core/helpers.js';
-import { DEFAULT_HOURS_BY_DAY } from '../core/constants.js';
+import { formatName, parseShiftInterval, minutesToTime } from '../core/helpers.js';
 import { addBreakToPreview } from './SchedulePreview.js';
 import { showToast, clearToasts } from './Toast.js';
 import { openCustomize } from './CustomizeOverlay.js';
+import { TUTORIAL_STEPS } from './UkgMock.js';
+
+/** Customer-facing main departments whose subdepts default to "staggered" on
+ *  first upload. Compared case-insensitively against trimmed main-dept names. */
+const DEFAULT_STAGGERED_MAINS = new Set([
+    'frontline',
+    'hardgoods',
+    'softgoods',
+    'shop'
+]);
 
 /**
  * WizardController — orchestrates the guided break-scheduling experience.
  *
- * Composes existing services (SettingsModel, CoverageGroupModel, ExcelFacade,
- * SchedulerController) rather than duplicating them. Owns the step state
- * machine and renders WizardView whenever model state changes.
+ * Composes existing services (SettingsModel, CoverageGroupModel, ExcelFacade)
+ * rather than duplicating them. Owns the step state machine and renders the
+ * view whenever model state changes.
  */
 export class WizardController {
     /**
      * @param {Object} deps
-     * @param {StorageFacade}        deps.storage
-     * @param {ExcelFacade}          deps.excel
-     * @param {SettingsModel}        deps.settings
-     * @param {CoverageGroupModel}   deps.groups
-     * @param {SchedulerController}  deps.scheduler
-     * @param {HTMLElement}          deps.root  - wizardRoot element
+     * @param {StorageFacade}      deps.storage
+     * @param {ExcelFacade}        deps.excel
+     * @param {SettingsModel}      deps.settings
+     * @param {CoverageGroupModel} deps.groups
+     * @param {HTMLElement}        deps.root  - wizardRoot element
      */
-    constructor({ storage, excel, settings, groups, scheduler, root }) {
-        this._storage   = storage;
-        this._excel     = excel;
-        this._settings  = settings;
-        this._groups    = groups;
-        this._scheduler = scheduler;
-        this._root      = root;
+    constructor({ storage, excel, settings, groups, root }) {
+        this._storage  = storage;
+        this._excel    = excel;
+        this._settings = settings;
+        this._groups   = groups;
+        this._root     = root;
 
         this._model = new WizardModel(storage);
         this._view  = new WizardView(root);
+
+        // Per-step ephemeral UI state (controller-local)
+        this._editingScheduleId = null;
+        this._tutorialStep      = 0;     // index into the export-help sub-steps
+        this._editFromReview    = false; // when true, Next from edit destination returns to review
     }
 
     init() {
-        // Re-render whenever any wizard-state slice changes
-        this._model.subscribe('change:step',                 () => this._render());
-        this._model.subscribe('change:upload',               () => this._render());
-        this._model.subscribe('change:selected-departments', () => this._render());
-        this._model.subscribe('change:remember',             () => this._render());
-        this._model.subscribe('change:result',               () => this._render());
-        this._model.subscribe('change:schedules',            () => this._render());
-
-        // Per-step ephemeral UI state (e.g., which schedule is being edited)
-        this._editingScheduleId = null;
-        this._tutorialStep = 0;   // index into the export-help sub-steps
-        this._editFromReview = false;  // if true, "Next" on the destination returns to review
-
+        // Any model-state change re-renders the wizard
+        for (const ev of ['step', 'upload', 'selected-departments', 'schedules', 'result']) {
+            this._model.subscribe(`change:${ev}`, () => this._render());
+        }
         this._render();
     }
 
     // ── Render ──────────────────────────────────────────────────────────────
 
     _render() {
-        const state = {
-            step:               this._model.getStep(),
-            history:            [],   // currently unused at view layer
-            remember:           this._model.getRemember(),
-            upload:             this._model.getUpload(),
-            selectedDepartments: this._model.getSelectedDepartments(),
-            operatingHours:     this._settings.getHoursByDay(),
-            advancedSettings:   this._settings.getAdvancedSettings(),
-            schedules:          this._model.getSchedules(),
-            assignedDays:       this._model.getAssignedDayKeys(),
-            editingScheduleId:  this._editingScheduleId,
-            tutorialStep:       this._tutorialStep,
-            editMode:           this._editFromReview,
-            coverageGroups:     this._groups.getAll(),
-            result:             this._model.getResult(),
-            hasPriorRun:        this._hasPriorRun()
-        };
-
-        this._view.render(state, this._buildCallbacks());
+        this._view.render({
+            step:                 this._model.getStep(),
+            upload:               this._model.getUpload(),
+            selectedDepartments:  this._model.getSelectedDepartments(),
+            advancedSettings:     this._settings.getAdvancedSettings(),
+            schedules:            this._model.getSchedules(),
+            assignedDays:         this._model.getAssignedDayKeys(),
+            editingScheduleId:    this._editingScheduleId,
+            tutorialStep:         this._tutorialStep,
+            editMode:             this._editFromReview,
+            coverageGroups:       this._groups.getAll(),
+            result:               this._model.getResult(),
+            hasPriorRun:          this._hasPriorRun()
+        }, this._buildCallbacks());
     }
 
+    /** True iff the user has completed the wizard at least once. */
     _hasPriorRun() {
-        const remember = this._model.getRemember();
-        if (Object.values(remember).some(Boolean)) return true;
         const persistedDepts = this._storage.get('wizardSelectedDepartments', []);
-        return persistedDepts.length > 0;
+        const persistedScheds = this._storage.get('wizardSchedules', []);
+        return persistedDepts.length > 0 || persistedScheds.length > 0;
     }
 
     _buildCallbacks() {
         return {
             // Landing
-            onStart:   () => this._handleStart(),
-            onRestart: () => this._handleRestart(),
+            onStart: () => this._handleStart(),
 
             // Have-file / Export-help
             onChoice: (next) => {
@@ -99,7 +96,6 @@ export class WizardController {
             // Tutorial nav (export-help)
             onTutorialNext:    () => this._tutorialNext(),
             onTutorialPrev:    () => this._tutorialPrev(),
-            onTutorialFinish:  () => { this._tutorialStep = 0; this._model.goTo('upload'); },
             onShowTutorial:    () => { this._tutorialStep = 0; this._model.goTo('export-help'); },
 
             // Upload
@@ -107,13 +103,13 @@ export class WizardController {
 
             // Departments
             onToggleDept:           (key) => this._model.toggleDepartment(key),
-            onSelectAllDepts:       () => this._selectAllDepartments(true),
-            onSelectNoneDepts:      () => this._selectAllDepartments(false),
+            onSelectAllDepts:       () => this._setAllDepartmentsSelected(true),
+            onSelectNoneDepts:      () => this._setAllDepartmentsSelected(false),
             onUngroup:              (id) => this._ungroupCoverageGroup(id),
             onMoveDeptToGroup:      (key, groupId) => this._moveDeptToGroup(key, groupId),
             onMoveDeptToStandalone: (key) => this._moveDeptToStandalone(key),
             onDropDeptOnDept:       (src, tgt) => this._dropDeptOnDept(src, tgt),
-            onSetGroupSelection:    (groupId, checked) => this._setGroupSelection(groupId, checked),
+            onSetGroupSelection:    (id, checked) => this._setGroupSelection(id, checked),
             onRenameGroup:          (id) => this._renameCoverageGroup(id),
             onDeleteAllGroups:      () => this._deleteAllCoverageGroups(),
 
@@ -126,29 +122,30 @@ export class WizardController {
             onAddAnother:      () => this._addAnotherSchedule(),
 
             // Review
-            onCustomize:    () => this._openLegacyCustomize(),
-            onChangeStep:   (step) => this._jumpFromReview(step),
+            onCustomize:  (anchor) => this._openCustomize(anchor),
+            onChangeStep: (step) => this._jumpFromReview(step),
 
             // Done
-            onDownload: () => this._handleDownload(),
+            onDownload:       () => this._handleDownload(),
+            onAdjustSettings: () => this._handleAdjustSettings(),
+            onRestart:        () => this._handleRestart(),
 
-            // Generic
-            onContinue:        () => this._handleContinue(),
-            onBack:            () => this._handleBack(),
-            onRememberChange:  (key, value) => this._model.setRemember(key, value)
+            // Generic step nav
+            onContinue: () => this._handleContinue(),
+            onBack:     () => this._handleBack()
         };
     }
 
     // ── Step handlers ───────────────────────────────────────────────────────
 
     _handleStart() {
-        const { haveFile } = this._model.getRemember();
-        this._model.goTo(haveFile ? 'upload' : 'have-file');
+        // First-time users see the have-file prompt; returning users skip it.
+        this._model.goTo(this._hasPriorRun() ? 'upload' : 'have-file');
     }
 
     _tutorialNext() {
-        const TUTORIAL_LAST = 5; // 0..5 (6 sub-steps)
-        if (this._tutorialStep < TUTORIAL_LAST) {
+        const last = TUTORIAL_STEPS.length - 1;
+        if (this._tutorialStep < last) {
             this._tutorialStep += 1;
             this._render();
         } else {
@@ -162,15 +159,8 @@ export class WizardController {
             this._tutorialStep -= 1;
             this._render();
         } else {
-            // At the first sub-step → back out to the have-file choice
             this._model.back();
         }
-    }
-
-    _handleRestart() {
-        this._model.clearUpload();
-        this._model.setResult(null);
-        this._model.goTo('have-file');
     }
 
     _handleContinue() {
@@ -244,31 +234,30 @@ export class WizardController {
             return;
         }
 
-        const day = dailySchedules[0]; // phase-1: handle the first day only
+        // Phase 1: handle the first day in a multi-day workbook
+        const day = dailySchedules[0];
         const detectedDepartments = this._detectDepartments(day.rows);
 
-        // Pre-fill selection: if user has remembered selections that overlap
-        // with what's detected, use those; otherwise select everything.
+        // Pre-fill selection: prefer the persisted set (intersected with what's
+        // actually in this file). On first run, default to subdepartments under
+        // the customer-facing main departments (Frontline, Hardgoods, Softgoods,
+        // Shop) — anything else stays unstaggered until the user opts in.
         const persisted = new Set(this._storage.get('wizardSelectedDepartments', []));
         const detectedKeys = detectedDepartments.map(d => `${d.main}|${d.sub}`);
-        const useRemembered = this._model.getRemember().departments && persisted.size > 0;
-        const initialSelection = useRemembered
+        const initialSelection = persisted.size > 0
             ? new Set(detectedKeys.filter(k => persisted.has(k)))
-            : new Set(detectedKeys);
+            : new Set(detectedDepartments
+                .filter(d => DEFAULT_STAGGERED_MAINS.has(d.main.trim().toLowerCase()))
+                .map(d => `${d.main}|${d.sub}`));
 
-        this._model.setUpload({
-            file,
-            rows: day.rows,
-            date: day.date,
-            detectedDepartments
-        });
+        this._model.setUpload({ file, rows: day.rows, date: day.date, detectedDepartments });
         this._model.setSelectedDepartments(initialSelection);
 
-        // Auto-advance: file is loaded, jump to the next configurable step
+        // Auto-advance into the next step (state, or review when streamlined)
         this._handleContinue();
     }
 
-    _selectAllDepartments(all) {
+    _setAllDepartmentsSelected(all) {
         const detected = this._model.getUpload().detectedDepartments || [];
         const next = all ? new Set(detected.map(d => `${d.main}|${d.sub}`)) : new Set();
         this._model.setSelectedDepartments(next);
@@ -431,12 +420,8 @@ export class WizardController {
     }
 
     _addAnotherSchedule() {
-        // Re-render with editingScheduleId=null forces the "add" form to show
-        // even when all days are covered.
         this._editingScheduleId = null;
-        this._forceShowAddForm = true;
         this._render();
-        this._forceShowAddForm = false;
     }
 
     /**
@@ -455,12 +440,12 @@ export class WizardController {
         this._settings.setHoursByDay(next);
     }
 
-    _openLegacyCustomize() {
+    _openCustomize(anchor) {
         // Reparent the legacy advanced-settings panel into a modal overlay so
         // its existing graphic editors (rest-period, meal-placement, segmented
-        // controls) keep working with the same bindings. Re-render the wizard
-        // when the modal closes so the review summary reflects any edits.
-        openCustomize({ onClose: () => this._render() });
+        // controls) keep working with the same bindings. Re-render when the
+        // modal closes so the review summary reflects any edits.
+        openCustomize({ anchor, onClose: () => this._render() });
     }
 
     // ── Run + download ──────────────────────────────────────────────────────
@@ -580,6 +565,20 @@ export class WizardController {
         this._excel.download(result.workbook, result.filename);
     }
 
+    /** Done → review: keep the upload, drop the result so the user can tweak
+     *  settings and re-run without re-uploading. */
+    _handleAdjustSettings() {
+        this._model.setResult(null);
+        this._model.goTo('review');
+    }
+
+    /** Done → landing: clear the upload + result for a fresh schedule. */
+    _handleRestart() {
+        this._model.setResult(null);
+        this._model.clearUpload();
+        this._model.goTo('landing');
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /**
@@ -635,6 +634,3 @@ export class WizardController {
         return 8;
     }
 }
-
-// Helper export for tests / future use; currently unused at runtime.
-export { DEFAULT_HOURS_BY_DAY, timeToMinutes };

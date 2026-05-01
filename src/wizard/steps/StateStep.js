@@ -45,7 +45,7 @@ export function renderState(el, state, callbacks) {
                 <div class="wizard-law-rule">
                     <div class="wizard-law-rule-title"><i class="fas fa-utensils"></i> Meal periods</div>
                     <p>
-                        A 30-minute meal break is required for shifts longer than 5 hours. Meals can be waived for shifts of 6 hours or less by mutual consent.
+                        A 30-minute unpaid meal break is required for shifts longer than 5 hours. Employees must clock out for the meal and start it before the end of the fifth hour worked.
                     </p>
                 </div>
 
