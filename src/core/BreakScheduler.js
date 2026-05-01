@@ -349,6 +349,10 @@ function scheduleRestBreak(
  * Post-processing pass: for employees in the same dept/subdept,
  * swap break times that are out of schedule order, as long as coverage remains identical.
  * This produces a more readable schedule where earlier-listed employees get earlier breaks.
+ *
+ * Runs across all four slots (rest1, meal, rest2, rest3). The rest3 slot can hold
+ * either a 3rd rest break (15 min) or a 2nd meal (30 min); a swap is only attempted
+ * when both employees hold the same kind of break in that slot.
  */
 function swapBreaksForScheduleOrder(
     employeeOrder, employeeSchedules, breaks, groups, startOfDay, endOfDay, log, onEvent
@@ -363,12 +367,12 @@ function swapBreaksForScheduleOrder(
         byDept[key].push(name);
     }
 
+    const SLOTS = ['rest1', 'meal', 'rest2', 'rest3'];
+
     for (const [key, employees] of Object.entries(byDept)) {
         const [dept, subdept] = key.split('|');
-        const group = findGroupContaining(dept, subdept, groups);
-        if (!group) continue;
 
-        for (const slot of ['rest1', 'rest2']) {
+        for (const slot of SLOTS) {
             for (let i = 0; i < employees.length; i++) {
                 for (let j = i + 1; j < employees.length; j++) {
                     const empA = employees[i];
@@ -381,9 +385,15 @@ function swapBreaksForScheduleOrder(
                     const schedA = employeeSchedules.get(empA);
                     const schedB = employeeSchedules.get(empB);
 
+                    // Durations must match — swapping a 15-min rest with a 30-min meal
+                    // would change the actual time off and silently violate regulations.
+                    const durA = slotDuration(schedA, slot);
+                    const durB = slotDuration(schedB, slot);
+                    if (durA !== durB) continue;
+
                     // Verify the swapped times are valid for both employees
-                    if (!schedA.isValidBreakWindow(timeB, 15)) continue;
-                    if (!schedB.isValidBreakWindow(timeA, 15)) continue;
+                    if (!schedA.isValidBreakWindow(timeB, durA)) continue;
+                    if (!schedB.isValidBreakWindow(timeA, durB)) continue;
 
                     // Verify coverage doesn't degrade after the swap
                     const original = deepCloneBreaksObj(breaks);
@@ -412,6 +422,16 @@ function swapBreaksForScheduleOrder(
             }
         }
     }
+}
+
+function slotDuration(empSchedule, slot) {
+    if (slot === 'meal') return 30;
+    if (slot === 'rest3') {
+        // rest3 holds a 3rd rest if the employee qualifies for one; otherwise it holds
+        // the 2nd meal placed for 10h+ shifts (see "Resolve second meal periods" pass).
+        return empSchedule.restBreaksRequired() >= 3 ? 15 : 30;
+    }
+    return 15;
 }
 
 function deepCloneBreaksObj(breaks) {
