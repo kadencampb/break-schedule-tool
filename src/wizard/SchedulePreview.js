@@ -54,7 +54,7 @@ export function renderPreview(container, state) {
     container.innerHTML = `
         <div class="wizard-preview" data-preview>
             <header class="wizard-preview-header">
-                <div class="wizard-preview-title">${escape(upload.date || 'Schedule')}</div>
+                <div class="wizard-preview-title">${escape(formatDate(upload.date) || 'Schedule')}</div>
                 <div class="wizard-preview-meta">
                     <span><strong>${totalEmployees}</strong> ${totalEmployees === 1 ? 'employee' : 'employees'}</span>
                     <span class="wizard-preview-meta-sep">·</span>
@@ -206,6 +206,21 @@ function renderSkeleton() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function formatDate(raw) {
+    if (!raw) return '';
+    // Accept "YYYY-MM-DD" → "Month D, YYYY" (e.g. "2026-04-30" → "April 30, 2026").
+    // If the input doesn't match, return it untouched so unexpected formats
+    // still render rather than vanish.
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+    if (!match) return raw;
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+    const [, y, m, d] = match;
+    const monthName = months[parseInt(m, 10) - 1];
+    if (!monthName) return raw;
+    return `${monthName} ${parseInt(d, 10)}, ${y}`;
+}
 
 function formatShift(raw) {
     if (!raw) return '';

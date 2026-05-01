@@ -29,7 +29,7 @@ export function renderDone(stepEl, state, callbacks) {
         </button>
 
         <button type="button" class="wizard-btn wizard-btn-ghost wizard-btn-block" data-action="adjust">
-            <i class="fas fa-sliders-h"></i> Adjust settings &amp; re-run
+            <i class="fas fa-sliders-h"></i> Adjust settings and run again
         </button>
 
         <button type="button" class="wizard-btn wizard-btn-ghost wizard-btn-block" data-action="restart">

@@ -26,14 +26,14 @@ function renderSidebar(el, state, callbacks) {
         <div class="wizard-sidebar-eyebrow">Step 5 of 6</div>
         <h2 class="wizard-sidebar-title">Looks good?</h2>
         <p class="wizard-sidebar-sub">
-            Review every setting before running.
+            Review last used settings before running.
         </p>
 
         <div class="wizard-summary-stack">
             ${summaryRow({
                 icon: 'fas fa-map-marker-alt',
                 label: 'State',
-                value: 'California',
+                value: emph('California'),
                 action: 'state'
             })}
             ${summaryRow({
@@ -44,8 +44,8 @@ function renderSidebar(el, state, callbacks) {
             })}
             ${summaryRow({
                 icon: 'fas fa-sitemap',
-                label: 'Departments',
-                value: `${selectedDepts} of ${totalDepts} staggered`,
+                label: 'Customer facing departments',
+                value: `${emph(`${selectedDepts} of ${totalDepts}`)} staggered`,
                 action: 'departments'
             })}
 
@@ -53,26 +53,26 @@ function renderSidebar(el, state, callbacks) {
 
             ${summaryRow({
                 icon: 'fas fa-coffee',
-                label: 'Rest break window',
-                value: `${120 - adv.maxEarly}–${120 + adv.maxDelay}m after period start`,
+                label: 'Rest break placement',
+                value: `${emph(`${120 - adv.maxEarly}–${120 + adv.maxDelay}m`)} after period start`,
                 action: 'customize:rest'
             })}
             ${summaryRow({
                 icon: 'fas fa-utensils',
                 label: 'Meal placement',
-                value: `${formatMinutes(adv.idealMealOffset)} after clock-in`,
+                value: `${emph(`${formatMinutes(adv.idealMealOffset)}h`)} after clock-in`,
                 action: 'customize:meal'
             })}
             ${summaryRow({
                 icon: 'fas fa-users',
-                label: 'Coverage priority',
-                value: formatDeptMode(adv.deptCoverageMode),
+                label: 'Group coverage priority',
+                value: emph(formatDeptMode(adv.deptCoverageMode)),
                 action: 'customize:dept-coverage'
             })}
             ${summaryRow({
                 icon: 'fas fa-balance-scale',
-                label: 'Time vs coverage',
-                value: formatTimeMode(adv.timeCoverageMode),
+                label: 'Predictable timing priority',
+                value: emph(formatTimeMode(adv.timeCoverageMode)),
                 action: 'customize:time-coverage'
             })}
         </div>
@@ -81,7 +81,7 @@ function renderSidebar(el, state, callbacks) {
             <button type="button" class="wizard-btn wizard-btn-ghost" data-action="back">
                 <i class="fas fa-arrow-left"></i> Back
             </button>
-            <button type="button" class="wizard-btn wizard-btn-primary" data-action="run">
+            <button type="button" class="wizard-btn wizard-btn-primary wizard-btn-large" data-action="run">
                 Run <i class="fas fa-play"></i>
             </button>
         </div>
@@ -103,6 +103,10 @@ function renderSidebar(el, state, callbacks) {
 
     el.querySelector('[data-action="back"]')?.addEventListener('click', callbacks.onBack);
     el.querySelector('[data-action="run"]')?.addEventListener('click', callbacks.onContinue);
+}
+
+function emph(text) {
+    return `<strong class="wizard-summary-emph">${text}</strong>`;
 }
 
 function summaryRow({ icon, label, value, action }) {
@@ -147,17 +151,18 @@ function formatHoursSummary(schedules) {
 
     if (schedules.length === 1) {
         const s = schedules[0];
-        return `${formatTime12(s.open)} – ${formatTime12(s.close)}, every day`;
+        return `${emph(`${formatTime12(s.open)}–${formatTime12(s.close)}`)}, every day`;
     }
 
-    // Multi-schedule: each group on its own line so long combinations don't truncate
-    const parts = schedules.map(s => {
+    // Multi-schedule: render as a 2-column grid so day labels (col 1) align
+    // across all rows and the time ranges (col 2) start in the same place.
+    const rows = schedules.map(s => {
         const days = DAY_KEYS
             .filter(d => s.days.includes(d))
             .map(d => DAY_SHORT[DAY_KEYS.indexOf(d)]);
-        return `${condenseDays(days)} ${formatTime12(s.open)}–${formatTime12(s.close)}`;
+        return `<span>${condenseDays(days)}</span>${emph(`${formatTime12(s.open)}–${formatTime12(s.close)}`)}`;
     });
-    return parts.join('<br>');
+    return `<span class="wizard-summary-hours">${rows.join('')}</span>`;
 }
 
 function condenseDays(days) {

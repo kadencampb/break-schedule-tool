@@ -187,7 +187,7 @@
                             </small>
 
                             <div class="break-flex-graphic" id="breakFlexGraphic">
-                                <div class="bfg-header">Time elapsed since start of each 4h work period</div>
+                                <div class="bfg-header">Time elapsed since start of 4h period</div>
                                 <div class="bfg-stage">
                                     <div class="bfg-track" id="bfgTrack" aria-hidden="true">
                                         <!-- 16 cells inserted by SettingsView at runtime -->
@@ -202,23 +202,18 @@
                                 <div class="bfg-axis" aria-hidden="true">
                                     <span class="bfg-axis-label" style="left: 0%;">0h</span>
                                     <span class="bfg-axis-label" style="left: 25%;">1h</span>
-                                    <span class="bfg-axis-label bfg-axis-label-ideal" style="left: 53.125%;">2h<br><small>ideal</small></span>
+                                    <span class="bfg-axis-label bfg-axis-label-ideal" style="left: 53.125%;">2h<br><small>Ideal Rest Period Placement (CA DLSE)</small></span>
                                     <span class="bfg-axis-label" style="left: 75%;">3h</span>
                                     <span class="bfg-axis-label" style="left: 100%;">4h</span>
                                 </div>
-                                <div class="bfg-readout bfg-readout-stack">
-                                    <span class="bfg-readout-early">
-                                        <strong>Earliest possible</strong>: <span id="maxEarlyValue">60</span>m before ideal
-                                    </span>
-                                    <span class="bfg-readout-delay">
-                                        <strong>Latest possible</strong>: <span id="maxDelayValue">45</span>m after ideal
-                                    </span>
+                                <div class="bfg-readout">
+                                    <span>Rest period starts <span id="restRangeValue">1:00–2:45</span>h into 4h period</span>
                                 </div>
                             </div>
 
                             <!-- Hidden range inputs preserve model state and serve as a screen-reader fallback -->
                             <input type="range" id="maxEarly" min="0" max="105" step="15" value="60" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
-                            <input type="range" id="maxDelay" min="0" max="105" step="15" value="45" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
+                            <input type="range" id="maxDelay" min="0" max="90" step="15" value="45" class="bfg-hidden-input" aria-hidden="true" tabindex="-1">
 
                             <hr class="my-4">
 
@@ -234,8 +229,8 @@
                                     <div class="bfg-track bfg-track-meal" id="mealPrefTrack" aria-hidden="true">
                                         <!-- 16 cells inserted by SettingsView at runtime -->
                                     </div>
-                                    <div class="bfg-meal-block" id="mealPrefBlock" aria-hidden="true">
-                                        <span class="bfg-meal-block-arrow">↔</span>
+                                    <div class="bfg-meal-handle" id="mealPrefBlock" aria-hidden="true">
+                                        <span class="bfg-meal-handle-arrow">↔</span>
                                     </div>
                                 </div>
                                 <div class="bfg-axis bfg-axis-meal" aria-hidden="true">
@@ -246,7 +241,7 @@
                                     <span class="bfg-axis-label" style="left: 100%;">6h</span>
                                 </div>
                                 <div class="bfg-readout">
-                                    <span>Meal starts <strong><span id="idealMealOffsetValue">4:30</span></strong> after clock-in</span>
+                                    <span>Meal starts <span id="idealMealOffsetValue">4:30</span>h after clock-in</span>
                                 </div>
                             </div>
 
@@ -265,7 +260,7 @@
 
                             <hr class="my-4">
 
-                            <h6 class="font-weight-bold mb-2" data-customize-anchor="dept-coverage">Department Coverage Priority</h6>
+                            <h6 class="font-weight-bold mb-2" data-customize-anchor="dept-coverage">Group Coverage Priority</h6>
                             <small class="form-text text-muted mb-3">
                                 How the scheduler counts coworkers when staggering breaks.
                                 Pick <em>individual</em> to keep coverage tight within each subdepartment, or
@@ -289,7 +284,7 @@
 
                             <div class="mt-4"></div>
 
-                            <h6 class="font-weight-bold mb-2" data-customize-anchor="time-coverage">Time vs Coverage Priority</h6>
+                            <h6 class="font-weight-bold mb-2" data-customize-anchor="time-coverage">Predictable Timing Priority</h6>
                             <small class="form-text text-muted mb-3">
                                 Whether the scheduler should hold breaks close to the ideal time or
                                 shift them to maximize coverage.
@@ -310,9 +305,9 @@
                                 </button>
                             </div>
 
-                            <div class="mt-3">
-                                <button id="resetAdvancedBtn" class="btn btn-outline-warning btn-sm">
-                                    <i class="fas fa-undo mr-1"></i>Reset to Defaults
+                            <div class="mt-3 text-center">
+                                <button id="resetAdvancedBtn" class="btn btn-outline-danger btn-reset-advanced">
+                                    <i class="fas fa-undo mr-1"></i>Reset Advanced Settings to Defaults
                                 </button>
                             </div>
                         </div>

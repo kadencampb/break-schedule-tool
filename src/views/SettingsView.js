@@ -4,7 +4,12 @@ import { DEFAULT_ADVANCED_SETTINGS, DEFAULT_HOURS_BY_DAY } from '../core/constan
 const BFG_CELL_COUNT  = 16;
 const BFG_IDEAL_CELL  = 8;     // Cells 8 = 2:00 (the rest break ideal)
 const BFG_STEP        = 15;    // Minutes per cell
-const BFG_MAX_OFFSET  = 105;   // Cap each side at 7 cells = 105 min
+// Cells 0 and 15 are reserved as "not allowed" (the 0h and 4h boundaries —
+// breaks must not be adjacent to a shift transition). The valid range is
+// cells 1..14, so maxEarly caps at 7 cells (105 min) and maxDelay at 6
+// cells (90 min) given the ideal sits at cell 8.
+const BFG_MAX_EARLY   = 105;
+const BFG_MAX_DELAY   = 90;
 
 // Meal graphic: 16 cells (15 min each) spanning 2h to 6h after clock-in, with a
 // 2-cell highlight (30 min meal, width set in CSS) draggable between 2:45 (165)
@@ -223,12 +228,15 @@ export class SettingsView extends BaseView {
         const track = document.getElementById('bfgTrack');
         if (!track) return;
 
-        // Build 16 cells once. Hour boundaries (every 4th cell) get a thicker border.
+        // Build 16 cells once. Cells 0 and 15 represent the 0h/4h boundaries —
+        // breaks must not be adjacent to a shift transition, so they're permanently
+        // disabled (rendered like the meal "not allowed" shoulders).
         if (track.children.length === 0) {
             for (let i = 0; i < BFG_CELL_COUNT; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'bfg-cell';
-                if (i % 4 === 0) cell.setAttribute('data-hour-mark', 'true');
+                if (i % 4 === 0 && i !== 0) cell.setAttribute('data-hour-mark', 'true');
+                if (i === 0 || i === BFG_CELL_COUNT - 1) cell.setAttribute('data-state', 'disabled');
                 track.appendChild(cell);
             }
         }
@@ -247,17 +255,21 @@ export class SettingsView extends BaseView {
         const delayInput = this.el('maxDelay');
         if (!earlyInput || !delayInput) return;
 
-        const maxEarly = clamp(parseInt(earlyInput.value, 10) || 0, 0, BFG_MAX_OFFSET);
-        const maxDelay = clamp(parseInt(delayInput.value, 10) || 0, 0, BFG_MAX_OFFSET);
+        const maxEarly = clamp(parseInt(earlyInput.value, 10) || 0, 0, BFG_MAX_EARLY);
+        const maxDelay = clamp(parseInt(delayInput.value, 10) || 0, 0, BFG_MAX_DELAY);
 
         const earlyCells = Math.round(maxEarly / BFG_STEP);
         const delayCells = Math.round(maxDelay / BFG_STEP);
         const iMin = BFG_IDEAL_CELL - earlyCells;
         const iMax = BFG_IDEAL_CELL + delayCells;
 
-        // Color cells by state
+        // Color cells by state. Cells 0 and 15 stay 'disabled' regardless.
         const cells = track.querySelectorAll('.bfg-cell');
         cells.forEach((cell, idx) => {
+            if (idx === 0 || idx === BFG_CELL_COUNT - 1) {
+                cell.setAttribute('data-state', 'disabled');
+                return;
+            }
             let state;
             if (idx === BFG_IDEAL_CELL) state = 'ideal';
             else if (idx >= iMin && idx <= iMax) state = 'valid';
@@ -281,8 +293,13 @@ export class SettingsView extends BaseView {
             delayHandle.setAttribute('aria-valuetext', `${maxDelay} minutes after ideal`);
         }
 
-        this._updateDisplayValue('maxEarly', maxEarly);
-        this._updateDisplayValue('maxDelay', maxDelay);
+        // Single-line readout: "Rest period starts H:MM–H:MMh into 4h period"
+        const readout = document.getElementById('restRangeValue');
+        if (readout) {
+            const startMin = 120 - maxEarly;
+            const endMin   = 120 + maxDelay;
+            readout.textContent = `${formatHHMM(startMin)}–${formatHHMM(endMin)}`;
+        }
     }
 
     /** @private */
@@ -293,19 +310,43 @@ export class SettingsView extends BaseView {
         const input = this.el(kind);
         if (!stage || !input) return;
 
-        const commit = (value, { fireChange }) => {
-            const clamped = clamp(Math.round(value / BFG_STEP) * BFG_STEP, 0, BFG_MAX_OFFSET);
-            if (parseInt(input.value, 10) === clamped) return;
+        const maxOffset = (kind === 'maxEarly') ? BFG_MAX_EARLY : BFG_MAX_DELAY;
+        // Require this much drag past the boundary (in minutes) before the
+        // not-allowed shake fires. Mirrors the meal-block threshold so brushing
+        // past the wall by a single cell doesn't accidentally trigger it.
+        const BLOCKED_THRESHOLD_MIN = BFG_STEP * 2;
+
+        let blockedTimer = null;
+        const triggerBlocked = () => {
+            handle.classList.remove('is-blocked');
+            void handle.offsetWidth;
+            handle.classList.add('is-blocked');
+            if (blockedTimer) clearTimeout(blockedTimer);
+            blockedTimer = setTimeout(() => handle.classList.remove('is-blocked'), 160);
+        };
+
+        const commit = (rawValue, { fireChange }) => {
+            const snapped = Math.round(rawValue / BFG_STEP) * BFG_STEP;
+            const clamped = clamp(snapped, 0, maxOffset);
+            const overshoot = Math.abs(snapped - clamped);
+            const wantsFarBeyond = overshoot >= BLOCKED_THRESHOLD_MIN;
+
+            if (parseInt(input.value, 10) === clamped) {
+                if (wantsFarBeyond) triggerBlocked();
+                return;
+            }
             input.value = String(clamped);
             this._renderBreakFlexGraphic();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             if (fireChange) input.dispatchEvent(new Event('change', { bubbles: true }));
+            if (wantsFarBeyond) triggerBlocked();
         };
 
-        // Map a pointer x position within the stage to a value for this handle.
+        // Map a pointer x position within the stage to a raw value for this handle.
+        // Not clamped — let `commit` detect overshoot for the not-allowed shake.
         const pointerToValue = (clientX) => {
             const rect = stage.getBoundingClientRect();
-            const pct = clamp((clientX - rect.left) / rect.width, 0, 1);
+            const pct = (clientX - rect.left) / rect.width;
             const boundary = Math.round(pct * BFG_CELL_COUNT);
             return (kind === 'maxEarly')
                 ? (BFG_IDEAL_CELL - boundary) * BFG_STEP
@@ -353,7 +394,9 @@ export class SettingsView extends BaseView {
             for (let i = 0; i < MEAL_CELL_COUNT; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'bfg-cell';
-                if (i % 4 === 0) cell.setAttribute('data-hour-mark', 'true');
+                // Internal hour boundaries only (skip the 2h left edge to keep
+                // it visually flush with the disabled shoulder).
+                if (i % 4 === 0 && i !== 0) cell.setAttribute('data-hour-mark', 'true');
                 if (i < minBlockStartCell || i > maxBlockStartCell + 1) {
                     cell.setAttribute('data-state', 'disabled');
                 }
@@ -368,12 +411,29 @@ export class SettingsView extends BaseView {
     /** @private */
     _renderMealPrefGraphic() {
         const block = document.getElementById('mealPrefBlock');
+        const track = document.getElementById('mealPrefTrack');
         const select = this.el('idealMealOffset');
-        if (!block || !select) return;
+        if (!block || !track || !select) return;
 
         const offset = clamp(parseInt(select.value, 10) || MEAL_MIN_OFFSET, MEAL_MIN_OFFSET, MEAL_MAX_OFFSET);
         const cellIndex = (offset - MEAL_AXIS_START_MIN) / BFG_STEP;
         block.style.left = `${(cellIndex / MEAL_CELL_COUNT) * 100}%`;
+
+        // Re-color cells: the 2 cells covered by the current selection get the
+        // 'ideal' (mid-green) state; everything else keeps its baseline (disabled
+        // shoulders or the un-set default).
+        const minBlockStartCell = (MEAL_MIN_OFFSET - MEAL_AXIS_START_MIN) / BFG_STEP;
+        const maxBlockStartCell = (MEAL_MAX_OFFSET - MEAL_AXIS_START_MIN) / BFG_STEP;
+        const cells = track.querySelectorAll('.bfg-cell');
+        cells.forEach((cell, idx) => {
+            if (idx < minBlockStartCell || idx > maxBlockStartCell + 1) {
+                cell.setAttribute('data-state', 'disabled');
+            } else if (idx === cellIndex || idx === cellIndex + 1) {
+                cell.setAttribute('data-state', 'valid');
+            } else {
+                cell.removeAttribute('data-state');
+            }
+        });
 
         this._updateDisplayValue('idealMealOffset', offset);
     }
@@ -455,4 +515,10 @@ export class SettingsView extends BaseView {
 
 function clamp(val, lo, hi) {
     return Math.max(lo, Math.min(hi, val));
+}
+
+function formatHHMM(totalMin) {
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
 }
