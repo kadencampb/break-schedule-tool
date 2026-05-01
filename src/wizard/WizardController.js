@@ -572,11 +572,11 @@ export class WizardController {
         this._model.goTo('review');
     }
 
-    /** Done → landing: clear the upload + result for a fresh schedule. */
+    /** Done → upload: clear the upload + result for a fresh schedule. */
     _handleRestart() {
         this._model.setResult(null);
         this._model.clearUpload();
-        this._model.goTo('landing');
+        this._model.goTo('upload');
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
