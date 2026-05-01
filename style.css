@@ -1138,7 +1138,7 @@ body {
 .wizard-sidebar-content {
     flex: 1;
     overflow-y: auto;
-    padding: 2rem 1.75rem 0;
+    padding: 1.5rem 1.75rem 0;
     display: flex;
     flex-direction: column;
 }
@@ -1153,24 +1153,25 @@ body {
 }
 
 .wizard-sidebar-title {
-    font-size: 1.7rem;
+    font-size: 1.55rem;
     font-weight: 700;
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.4rem;
     letter-spacing: -0.015em;
     line-height: 1.2;
 }
 
 .wizard-sidebar-sub {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--wiz-text-muted);
-    line-height: 1.55;
-    margin: 0 0 1.25rem;
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
 }
 
-/* Pin nav buttons to the bottom of the sidebar so their position stays
-   consistent across steps even when the sidebar content scrolls. */
+/* Nav sits right after the content (no auto-push) so it doesn't drop to the
+   far bottom on short steps. Sticky positioning still keeps it visible when
+   the content overflows and the user scrolls. */
 .wizard-sidebar-content .wizard-nav {
-    margin: auto -1.75rem 0;
+    margin: 1.25rem -1.75rem 0;
     padding: 1rem 1.75rem 1.5rem;
     position: sticky;
     bottom: 0;
@@ -1561,8 +1562,10 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    min-height: 480px;
+    /* Fixed height so every tutorial step renders the mock at the same size —
+       short content (intro card) doesn't shrink below this, and tall content
+       (home dashboard) is clipped instead of scrolling. */
+    height: 600px;
 }
 
 /* Tutorial intro card — shown for the first sub-step before any mock UKG
@@ -1638,6 +1641,7 @@ body {
     align-items: center;
     justify-content: space-between;
     height: 64px;
+    flex-shrink: 0;
     position: relative;
     z-index: 4;
 }
@@ -1676,58 +1680,6 @@ body {
     margin-left: 0.4rem;
 }
 
-/* When the hamburger is the tutorial target, drop a bouncing "Click here"
-   arrow underneath it so attention is unmissable on the green topbar. */
-.ukg-hamburger.is-target {
-    overflow: visible;
-}
-
-.ukg-hamburger.is-target::after {
-    content: 'Click here';
-    position: absolute;
-    top: calc(100% + 14px);
-    left: 0;
-    background: var(--wiz-green);
-    color: #fff;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    padding: 0.4rem 0.7rem;
-    border-radius: 6px;
-    white-space: nowrap;
-    box-shadow: 0 6px 18px rgba(47, 133, 90, 0.45);
-    animation: ukg-arrow-bounce 1.1s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 4;
-}
-
-.ukg-hamburger.is-target::before {
-    content: '';
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-bottom: 9px solid var(--wiz-green);
-    animation: ukg-arrow-bounce-center 1.1s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 4;
-}
-
-@keyframes ukg-arrow-bounce {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(5px); }
-}
-
-@keyframes ukg-arrow-bounce-center {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%      { transform: translateX(-50%) translateY(5px); }
-}
-
 .ukg-iconbtn-close {
     margin-left: auto;
     background: transparent;
@@ -1745,6 +1697,7 @@ body {
     padding: 0.85rem 1rem;
     background: var(--ukg-green-deep);
     color: #fff;
+    flex-shrink: 0;
 }
 
 .ukg-banner-bar {
@@ -1948,6 +1901,7 @@ body {
     padding: 0.5rem 0.85rem;
     border-bottom: 1px solid var(--ukg-border);
     background: var(--ukg-card);
+    flex-shrink: 0;
 }
 
 /* Toolbar: left-aligned, each button is icon-on-top + small label below */
@@ -1966,7 +1920,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.2rem;
     min-width: 56px;
     border-radius: 4px;
@@ -2020,6 +1974,14 @@ body {
     background: var(--ukg-green);
     border-color: var(--ukg-green);
     color: #fff;
+}
+
+/* Disabled pill state — used while no report is selected. */
+.ukg-pill-btn-disabled,
+.ukg-pill-btn-primary.ukg-pill-btn-disabled {
+    background: var(--ukg-card);
+    border-color: var(--ukg-border);
+    color: var(--ukg-mute);
 }
 
 .ukg-page-body {
@@ -2116,6 +2078,22 @@ body {
 
 .ukg-side-sub.muted { color: var(--ukg-mute); }
 
+/* Second-level child (the indented variant of "Custom Daily Schedule") */
+.ukg-side-sub-sub {
+    padding-left: 2.4rem !important;
+    font-size: 0.78rem;
+    color: var(--ukg-text);
+}
+
+/* Highlight applied after the user picks a report — mimics the row selection
+   color in the real UKG app and remains visible on the next tutorial step. */
+.ukg-side-sub-sub.is-selected,
+.ukg-side-sub.is-selected {
+    background: rgba(27, 94, 63, 0.12);
+    color: var(--ukg-green);
+    font-weight: 600;
+}
+
 .ukg-side-list .is-expanded .ukg-caret { transform: rotate(180deg); }
 
 .ukg-side-footer {
@@ -2154,6 +2132,123 @@ body {
 }
 
 .ukg-form-input { font-weight: 500; }
+
+/* Inputs that simulate a UKG dropdown — leading icon (optional), value, and a
+   trailing chevron. Layout via inline-flex so the chevron pins to the right. */
+.ukg-form-input-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+/* Only the value text should grow — explicitly excluded the SVG slot, which was
+   getting flex:1 from this selector and ballooning to share space with the text. */
+.ukg-form-input-dropdown > span:not(.ukg-form-input-svg) { flex: 1; }
+
+.ukg-form-input-icon {
+    color: var(--ukg-text);
+    font-size: 0.85rem;
+    width: 14px;
+    text-align: center;
+}
+
+/* Inline-SVG icon slot (e.g. UKG Hyperfind icon for Location). Slightly larger
+   than the FA icon glyphs so the multi-shape Hyperfind silhouette stays legible. */
+.ukg-form-input-svg {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    color: var(--ukg-green);
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.ukg-form-input-svg svg { width: 100%; height: 100%; display: block; }
+
+.ukg-form-input-caret {
+    color: var(--ukg-mute);
+    font-size: 0.7rem;
+    margin-left: auto;
+}
+
+/* Open dropdown menu — only rendered for the "Choose XLSX" tutorial step.
+   Sits below the dropdown input as a small popover with the two options. */
+.ukg-form-input-dropdown.is-open .ukg-form-input-caret {
+    transform: rotate(180deg);
+}
+
+.ukg-form-dropdown-menu {
+    margin-top: 0.35rem;
+    background: var(--ukg-card);
+    border: 1px solid var(--ukg-border);
+    border-radius: 4px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    /* No overflow: hidden — the green pulse box-shadow on the XLSX option needs
+       to extend beyond the menu's edges, otherwise it gets visually clipped. */
+}
+
+.ukg-form-dropdown-option {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+    color: var(--ukg-text);
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.ukg-form-dropdown-option:hover { background: rgba(0, 0, 0, 0.03); }
+
+/* ── Completion modal (final tutorial step) ─────────────────────────────── */
+
+.ukg-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 4;
+}
+
+.ukg-modal {
+    position: absolute;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ukg-card);
+    border: 1px solid var(--ukg-border);
+    border-radius: 6px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    width: 280px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+}
+
+.ukg-modal-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.85rem 0.5rem;
+}
+
+.ukg-modal-head strong {
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.ukg-modal-check {
+    color: var(--ukg-green);
+    font-size: 1rem;
+}
+
+.ukg-modal-body {
+    padding: 0 0.85rem 0.85rem;
+    font-size: 0.8rem;
+    color: var(--ukg-text);
+}
+
+.ukg-modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0.85rem 0.85rem;
+}
 
 /* ── Highlight pulse on the target element ─────────────────────────────── */
 
@@ -2200,7 +2295,8 @@ body {
 .wizard-tutorial-progress {
     display: flex;
     gap: 0.4rem;
-    margin: 1.25rem 0 1rem;
+    margin: 0.75rem 0 0;
+    flex-wrap: wrap;
 }
 
 .wizard-tutorial-dot {

@@ -55,6 +55,18 @@ const ICON_RUN_REPORT = `
     </svg>
 `;
 
+// UKG Hyperfind icon: bust silhouette (hollow head + shoulders arc) above two
+// hollow squares connected by a horizontal line — used as the "Location" picker.
+const ICON_HYPERFIND = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="3"/>
+        <path d="M6 13.5 C6 10, 8.5 8.5, 12 8.5 C15.5 8.5, 18 10, 18 13.5"/>
+        <line x1="9.5" y1="18.5" x2="14.5" y2="18.5"/>
+        <rect x="3.5" y="16" width="6" height="5" rx="0.5"/>
+        <rect x="14.5" y="16" width="6" height="5" rx="0.5"/>
+    </svg>
+`;
+
 export const TUTORIAL_STEPS = [
     {
         title: 'Open UKG first',
@@ -68,8 +80,13 @@ export const TUTORIAL_STEPS = [
     },
     {
         title: 'Open Dataviews & Reports',
-        body:  'In the menu, expand <strong>Dataviews &amp; Reports</strong> and click <strong>Report Library</strong>.',
-        render: renderMenu
+        body:  'In the menu, click <strong>Dataviews &amp; Reports</strong> to expand it.',
+        render: renderMenuCollapsed
+    },
+    {
+        title: 'Open the Report Library',
+        body:  'Under <strong>Dataviews &amp; Reports</strong>, click <strong>Report Library</strong>.',
+        render: renderMenuExpanded
     },
     {
         title: 'Run a new report',
@@ -83,13 +100,33 @@ export const TUTORIAL_STEPS = [
     },
     {
         title: 'Pick the daily schedule report',
-        body:  'Choose <strong>Custom Daily Schedule</strong>, then click <strong>Select</strong>.',
+        body:  'Under <strong>Custom Daily Schedule</strong>, click the indented <strong>Custom Daily Schedule</strong>.',
         render: renderSelectReportExpanded
     },
     {
-        title: 'Configure and run',
-        body:  'Set <strong>Timeframe</strong> to Today, <strong>Location</strong> to All Home Locations, <strong>Output Format</strong> to XLSX. Click <strong>Run Report</strong>.',
-        render: renderForm
+        title: 'Confirm the selection',
+        body:  'Click <strong>Select</strong> at the bottom of the panel.',
+        render: renderReportSelected
+    },
+    {
+        title: 'Open the Output Format dropdown',
+        body:  'Set <strong>Timeframe</strong> and <strong>Location</strong> as needed, then click the <strong>Output Format</strong> dropdown to change it.',
+        render: renderFormPickOutput
+    },
+    {
+        title: 'Choose XLSX',
+        body:  'Change the output format to <strong>XLSX</strong>.',
+        render: renderFormPickXlsx
+    },
+    {
+        title: 'Run the report',
+        body:  'Click <strong>Run Report</strong> at the bottom of the panel.',
+        render: renderFormRun
+    },
+    {
+        title: 'Download the report',
+        body:  'When the run finishes, click <strong>Ok</strong> to download the file.',
+        render: renderReportCompleted
     }
 ];
 
@@ -145,7 +182,6 @@ function renderTutorialIntro() {
                 <i class="fas fa-external-link-alt"></i>
             </div>
             <h3>Open UKG in another tab</h3>
-            <p>The next screens show what to click.</p>
             <button type="button" class="ukg-mock-intro-cta" data-tutorial-action="next">
                 I'm signed in to UKG <i class="fas fa-arrow-right"></i>
             </button>
@@ -173,15 +209,18 @@ function renderHome() {
     `;
 }
 
-function renderMenu() {
+function renderMenu({ expanded = true } = {}) {
+    // The Dataviews & Reports row is either:
+    //   • collapsed + targeted (the user hasn't opened it yet), or
+    //   • expanded with Report Library showing + Report Library targeted.
     const items = [
-        { label: 'Home',                expanded: false },
-        { label: 'Time',                expanded: false },
-        { label: 'Schedule',            expanded: false },
-        { label: 'Workforce Planning',  expanded: false },
-        { label: 'Dataviews & Reports', expanded: true  },
-        { label: 'My Information',      expanded: false },
-        { label: 'Maintenance',         expanded: false }
+        { label: 'Home',                expanded: false, target: false },
+        { label: 'Time',                expanded: false, target: false },
+        { label: 'Schedule',            expanded: false, target: false },
+        { label: 'Workforce Planning',  expanded: false, target: false },
+        { label: 'Dataviews & Reports', expanded,        target: !expanded },
+        { label: 'My Information',      expanded: false, target: false },
+        { label: 'Maintenance',         expanded: false, target: false }
     ];
 
     return `
@@ -200,11 +239,13 @@ function renderMenu() {
                     <div class="ukg-menu-search"><div class="ukg-skel-bar w-70"></div></div>
                     <ul class="ukg-menu-list">
                         ${items.map(it => `
-                            <li class="ukg-menu-item ${it.expanded ? 'is-expanded' : ''}">
+                            <li class="ukg-menu-item ${it.expanded ? 'is-expanded' : ''} ${it.target ? 'is-target' : ''}">
                                 <span>${it.label}</span>
                                 <i class="ukg-caret"></i>
                             </li>
                             ${it.expanded ? `
+                                <li class="ukg-menu-sub">Dataview Library</li>
+                                <li class="ukg-menu-sub">Group Edit Results</li>
                                 <li class="ukg-menu-sub is-target">Report Library</li>
                             ` : ''}
                         `).join('')}
@@ -216,7 +257,14 @@ function renderMenu() {
     `;
 }
 
-function renderReportLibrary({ openSidebar = false, expandedCustom = false } = {}) {
+function renderMenuCollapsed() { return renderMenu({ expanded: false }); }
+function renderMenuExpanded()  { return renderMenu({ expanded: true  }); }
+
+function renderReportLibrary({
+    openSidebar    = false,
+    expandedCustom = false,
+    selectedReport = false
+} = {}) {
     const tiles = Array.from({ length: 9 }).map(() => `
         <div class="ukg-report-tile">
             <div class="ukg-skel-bar w-50"></div>
@@ -225,6 +273,15 @@ function renderReportLibrary({ openSidebar = false, expandedCustom = false } = {
             <div class="ukg-skel-pill ukg-skel-pill-xlsx">XLSX</div>
         </div>
     `).join('');
+
+    // Sidebar target hierarchy:
+    //   • !expandedCustom            → target the "Custom Reports" category
+    //   • expandedCustom + !selected → target the indented "Custom Daily Schedule" sub-item
+    //   • expandedCustom + selected  → row stays selected, target moves to the Select button
+    const customReportsTarget = openSidebar && !expandedCustom;
+    const reportItemTarget    = openSidebar && expandedCustom && !selectedReport;
+    const selectButtonTarget  = openSidebar && expandedCustom && selectedReport;
+    const buttonsEnabled      = selectedReport;
 
     return `
         <div class="ukg-canvas">
@@ -258,19 +315,32 @@ function renderReportLibrary({ openSidebar = false, expandedCustom = false } = {
                             <button class="ukg-iconbtn-close" aria-hidden="true">×</button>
                         </div>
                         <ul class="ukg-side-list">
-                            <li>All</li>
-                            <li>Attendance</li>
-                            <li class="${!expandedCustom ? 'is-target' : ''} ${expandedCustom ? 'is-expanded' : ''}">
+                            <li><span>All</span><i class="ukg-caret"></i></li>
+                            <li><span>Attendance</span><i class="ukg-caret"></i></li>
+                            <li class="${customReportsTarget ? 'is-target' : ''} ${expandedCustom ? 'is-expanded' : ''}">
                                 <span>Custom Reports</span>
                                 <i class="ukg-caret"></i>
                             </li>
                             ${expandedCustom ? `
-                                <li class="ukg-side-sub is-target">Custom Daily Schedule</li>
-                                <li class="ukg-side-sub muted">Store Weekly Schedule by Employee</li>
+                                <li class="ukg-side-sub is-expanded">
+                                    <span>Custom Daily Schedule</span>
+                                    <i class="ukg-caret"></i>
+                                </li>
+                                <li class="ukg-side-sub-sub ${reportItemTarget ? 'is-target' : ''} ${selectedReport ? 'is-selected' : ''}">
+                                    Custom Daily Schedule
+                                </li>
+                                <li class="ukg-side-sub muted">
+                                    <span>Store Weekly Schedule by Employee</span>
+                                    <i class="ukg-caret"></i>
+                                </li>
                             ` : ''}
-                            <li>Scheduler</li>
-                            <li>Timekeeping</li>
+                            <li><span>Scheduler</span><i class="ukg-caret"></i></li>
+                            <li><span>Timekeeping</span><i class="ukg-caret"></i></li>
                         </ul>
+                        <div class="ukg-side-footer">
+                            <button class="ukg-pill-btn ${buttonsEnabled ? '' : 'ukg-pill-btn-disabled'}" aria-hidden="true">Cancel</button>
+                            <button class="ukg-pill-btn ukg-pill-btn-primary ${buttonsEnabled ? '' : 'ukg-pill-btn-disabled'} ${selectButtonTarget ? 'is-target' : ''}" aria-hidden="true">Select</button>
+                        </div>
                     </aside>
                 ` : ''}
             </div>
@@ -279,14 +349,33 @@ function renderReportLibrary({ openSidebar = false, expandedCustom = false } = {
 }
 
 function renderSelectReport() {
-    return renderReportLibrary({ openSidebar: true, expandedCustom: false });
+    return renderReportLibrary({ openSidebar: true });
 }
 
 function renderSelectReportExpanded() {
     return renderReportLibrary({ openSidebar: true, expandedCustom: true });
 }
 
-function renderForm() {
+function renderReportSelected() {
+    return renderReportLibrary({ openSidebar: true, expandedCustom: true, selectedReport: true });
+}
+
+function renderFormPickOutput() {
+    return renderForm({ outputValue: 'PDF', targetOutput: true });
+}
+function renderFormPickXlsx() {
+    return renderForm({ outputValue: 'PDF', openDropdown: true });
+}
+function renderFormRun() {
+    return renderForm({ outputValue: 'XLSX', targetRun: true });
+}
+
+function renderForm({
+    targetRun     = false,
+    targetOutput  = false,
+    openDropdown  = false,
+    outputValue   = 'XLSX'
+} = {}) {
     return `
         <div class="ukg-canvas">
             ${topbar({ title: 'Report Library' })}
@@ -328,24 +417,97 @@ function renderForm() {
                         </div>
                         <div class="ukg-form-field">
                             <label>Timeframe<span class="req">*</span></label>
-                            <div class="ukg-form-input">Today</div>
+                            <div class="ukg-form-input ukg-form-input-dropdown">
+                                <i class="far fa-calendar-alt ukg-form-input-icon"></i>
+                                <span>Today</span>
+                                <i class="fas fa-chevron-down ukg-form-input-caret"></i>
+                            </div>
                         </div>
                         <div class="ukg-form-field">
                             <label>Location<span class="req">*</span></label>
-                            <div class="ukg-form-input">All Home Locations</div>
+                            <div class="ukg-form-input ukg-form-input-dropdown">
+                                <span class="ukg-form-input-svg">${ICON_HYPERFIND}</span>
+                                <span>All Home Locations</span>
+                                <i class="fas fa-chevron-down ukg-form-input-caret"></i>
+                            </div>
                         </div>
                         <div class="ukg-form-field">
                             <label>Output Format<span class="req">*</span></label>
-                            <div class="ukg-form-input">XLSX</div>
+                            <div class="ukg-form-input ukg-form-input-dropdown ${targetOutput ? 'is-target' : ''} ${openDropdown ? 'is-open' : ''}">
+                                <span>${outputValue}</span>
+                                <i class="fas fa-chevron-down ukg-form-input-caret"></i>
+                            </div>
+                            ${openDropdown ? `
+                                <div class="ukg-form-dropdown-menu">
+                                    <div class="ukg-form-dropdown-option">PDF</div>
+                                    <div class="ukg-form-dropdown-option is-target">XLSX</div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="ukg-side-footer">
                         <button class="ukg-pill-btn" aria-hidden="true">Cancel</button>
-                        <button class="ukg-pill-btn ukg-pill-btn-primary is-target" aria-hidden="true">
+                        <button class="ukg-pill-btn ukg-pill-btn-primary ${targetRun ? 'is-target' : ''}" aria-hidden="true">
                             Run Report
                         </button>
                     </div>
                 </aside>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Final step — UKG pops a "Report is completed" dialog after the run finishes.
+ * Clicking Ok dismisses the dialog and triggers the actual file download.
+ */
+function renderReportCompleted() {
+    const tiles = Array.from({ length: 9 }).map(() => `
+        <div class="ukg-report-tile">
+            <div class="ukg-skel-bar w-50"></div>
+            <div class="ukg-skel-bar w-70"></div>
+            <div class="ukg-skel-bar w-40"></div>
+            <div class="ukg-skel-pill ukg-skel-pill-xlsx">XLSX</div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="ukg-canvas">
+            ${topbar({ title: 'Report Library' })}
+            <div class="ukg-page-head">
+                <div class="ukg-toolbar">
+                    <button class="ukg-tool-btn" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_REPORTING_JOBS}</span>
+                        <span>Reporting<br>Jobs</span>
+                    </button>
+                    <button class="ukg-tool-btn" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_SELECT_ALL}</span>
+                        <span>Select All</span>
+                    </button>
+                    <button class="ukg-tool-btn ukg-tool-btn-disabled" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_DELETE}</span>
+                        <span>Delete</span>
+                    </button>
+                    <button class="ukg-tool-btn" aria-hidden="true">
+                        <span class="ukg-tool-icon">${ICON_RUN_REPORT}</span>
+                        <span>Run Report</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ukg-page-body">
+                <div class="ukg-tile-grid ukg-tile-grid-faded">${tiles}</div>
+            </div>
+            <div class="ukg-modal-backdrop"></div>
+            <div class="ukg-modal" role="dialog">
+                <div class="ukg-modal-head">
+                    <i class="fas fa-check-circle ukg-modal-check"></i>
+                    <strong>Report is completed</strong>
+                    <button class="ukg-iconbtn-close" aria-hidden="true">×</button>
+                </div>
+                <div class="ukg-modal-body">Custom Daily Schedule Report is completed</div>
+                <div class="ukg-modal-foot">
+                    <button class="ukg-pill-btn ukg-pill-btn-primary is-target" aria-hidden="true">Ok</button>
+                </div>
             </div>
         </div>
     `;
