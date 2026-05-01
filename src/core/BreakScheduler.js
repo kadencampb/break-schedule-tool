@@ -345,16 +345,6 @@ function scheduleRestBreak(
     return bestTime;
 }
 
-function findNearestValidWindow(empSchedule, idealTime, duration) {
-    // Try offsets in both directions
-    for (let offset = 0; offset <= 60; offset += 15) {
-        if (empSchedule.isValidBreakWindow(idealTime + offset, duration)) return idealTime + offset;
-        if (offset > 0 && empSchedule.isValidBreakWindow(idealTime - offset, duration)) return idealTime - offset;
-    }
-    // Fallback: start of first segment
-    return empSchedule.segments[0]?.start ?? idealTime;
-}
-
 /**
  * Post-processing pass: for employees in the same dept/subdept,
  * swap break times that are out of schedule order, as long as coverage remains identical.
