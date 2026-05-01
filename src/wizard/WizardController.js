@@ -529,9 +529,10 @@ export class WizardController {
         const interesting = placedEvents.filter(e => e.conflictedWith && e.slot === 'meal');
         const toastSet = new Set(interesting.slice(0, 4));
 
-        // ~4 second total budget regardless of event count
-        const totalMs = 4000;
-        const perEventMs = Math.max(20, Math.min(120, Math.floor(totalMs / placedEvents.length)));
+        // ~1.5 second total budget regardless of event count (2-3x faster than
+        // the original 4s pacing — still readable, much snappier).
+        const totalMs = 1500;
+        const perEventMs = Math.max(10, Math.min(50, Math.floor(totalMs / placedEvents.length)));
 
         if (statEl) statEl.textContent = `0 of ${placedEvents.length} breaks placed`;
 
