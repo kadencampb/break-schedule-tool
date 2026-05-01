@@ -1556,6 +1556,11 @@ body {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--ukg-border);
     font-size: 0.78rem;
     color: var(--ukg-text);
+    /* Match the canvas size so the intro step (no .ukg-canvas wrapper, just
+       .ukg-mock-intro) renders at the same height as every other step. */
+    height: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 .ukg-canvas {
