@@ -90,14 +90,34 @@ export function openCustomize({ onClose, anchor } = {}) {
     }
 }
 
+/**
+ * Mount the advanced-settings content into an arbitrary element (workspace panel).
+ * Uses the same physical DOM-move approach as openCustomize so all SettingsView
+ * bindings (sliders, segmented controls, graphics) keep working without rebinding.
+ */
+export function mountCustomizeInto(slot) {
+    if (!slot) return;
+    const collapse = document.getElementById('advancedSettingsCollapse');
+    if (!collapse) return;
+    const node = collapse.firstElementChild;
+    if (!node) return;
+    unmountCustomize(); // ensure nothing is double-mounted
+    homeParent = collapse;
+    movedNode  = node;
+    slot.appendChild(node);
+}
+
+/** Return the advanced-settings content to its original home. No-op if not mounted. */
+export function unmountCustomize() {
+    if (!movedNode || !homeParent) return;
+    homeParent.appendChild(movedNode);
+    movedNode  = null;
+    homeParent = null;
+}
+
 export function closeCustomize() {
     if (!overlay) return;
-
-    if (movedNode && homeParent) {
-        homeParent.appendChild(movedNode);
-        movedNode = null;
-        homeParent = null;
-    }
+    unmountCustomize();
 
     overlay.classList.remove('is-open');
     document.body.style.overflow = '';

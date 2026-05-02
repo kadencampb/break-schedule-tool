@@ -3,22 +3,12 @@ import { BaseModel } from '../models/BaseModel.js';
 /**
  * WizardModel — state machine + persistent state for the guided experience.
  *
- * Owns:
- *   • current step + back-nav history (transient)
- *   • uploaded file metadata + parsed rows (transient)
- *   • department selection set (persisted)
- *   • operating-hours schedules (persisted)
- *   • most recent run result (transient)
- *
- * Existing settings (advanced settings, coverage groups, per-day hours dict)
- * live in their own models — this composes them.
- *
  * Events:
- *   'change:step'                — current step transitioned
- *   'change:upload'              — uploaded file or parsed schedule changed
- *   'change:selected-departments'— department selection changed
- *   'change:schedules'           — operating-hours schedule list changed
- *   'change:result'              — scheduler ran and produced a result
+ *   'change:step'                 — current step transitioned
+ *   'change:upload'               — uploaded file or parsed schedule changed
+ *   'change:selected-departments' — stagger selection changed
+ *   'change:enabled-departments'  — break-generation selection changed
+ *   'change:result'               — scheduler ran and produced a result
  */
 export const STEPS = [
     'landing',
@@ -26,11 +16,7 @@ export const STEPS = [
     'export-help',
     'upload',
     'state',
-    'departments',
-    'hours',
-    'review',
-    'running',
-    'done'
+    'workspace'
 ];
 
 export class WizardModel extends BaseModel {
@@ -42,16 +28,15 @@ export class WizardModel extends BaseModel {
         this._step    = 'landing';
         this._history = [];
         this._selectedDepartments = new Set(storage.get('wizardSelectedDepartments', []));
-        this._schedules = storage.get('wizardSchedules', []);
-        this._upload    = blankUpload();
-        this._result    = null;
+        this._enabledDepartments  = new Set(storage.get('wizardEnabledDepartments',  null) || []);
+        this._upload = blankUpload();
+        this._result = null;
     }
 
     // ── Step ─────────────────────────────────────────────────────────────────
 
     getStep() { return this._step; }
 
-    /** Transition to a new step. Pushes the current step onto history for back nav. */
     goTo(step) {
         if (!STEPS.includes(step)) throw new Error(`Unknown wizard step: ${step}`);
         if (step === this._step) return;
@@ -60,7 +45,6 @@ export class WizardModel extends BaseModel {
         this.notify('change:step', { step });
     }
 
-    /** Return to the previous step. No-op if history is empty. */
     back() {
         if (!this._history.length) return;
         this._step = this._history.pop();
@@ -81,15 +65,10 @@ export class WizardModel extends BaseModel {
         this.notify('change:upload', this.getUpload());
     }
 
-    // ── Department selection ─────────────────────────────────────────────────
+    // ── Stagger selection (customer-facing) ──────────────────────────────────
 
     getSelectedDepartments() { return new Set(this._selectedDepartments); }
 
-    /**
-     * Set the active department selection. Persists to localStorage so the
-     * next run can pre-fill the same selection.
-     * @param {Iterable<string>} keys - "Main|Sub" department keys
-     */
     setSelectedDepartments(keys) {
         this._selectedDepartments = new Set(keys);
         this._storage.set('wizardSelectedDepartments', Array.from(this._selectedDepartments));
@@ -102,40 +81,20 @@ export class WizardModel extends BaseModel {
         this.setSelectedDepartments(next);
     }
 
-    // ── Operating-hours schedules ────────────────────────────────────────────
+    // ── Break-generation selection ───────────────────────────────────────────
 
-    getSchedules() {
-        return this._schedules.map(s => ({ ...s, days: [...s.days] }));
+    getEnabledDepartments() { return new Set(this._enabledDepartments); }
+
+    setEnabledDepartments(keys) {
+        this._enabledDepartments = new Set(keys);
+        this._storage.set('wizardEnabledDepartments', Array.from(this._enabledDepartments));
+        this.notify('change:enabled-departments', this.getEnabledDepartments());
     }
 
-    getAssignedDayKeys() {
-        const set = new Set();
-        for (const s of this._schedules) for (const d of s.days) set.add(d);
-        return set;
-    }
-
-    addSchedule({ open, close, days }) {
-        const id = (this._schedules.reduce((m, s) => Math.max(m, s.id), 0) || 0) + 1;
-        this._schedules.push({ id, open, close, days: [...days] });
-        this._persistSchedules();
-    }
-
-    updateSchedule(id, { open, close, days }) {
-        const idx = this._schedules.findIndex(s => s.id === id);
-        if (idx === -1) return;
-        this._schedules[idx] = { id, open, close, days: [...days] };
-        this._persistSchedules();
-    }
-
-    deleteSchedule(id) {
-        const before = this._schedules.length;
-        this._schedules = this._schedules.filter(s => s.id !== id);
-        if (this._schedules.length !== before) this._persistSchedules();
-    }
-
-    _persistSchedules() {
-        this._storage.set('wizardSchedules', this._schedules);
-        this.notify('change:schedules', this.getSchedules());
+    toggleBreakEnabled(key) {
+        const next = new Set(this._enabledDepartments);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        this.setEnabledDepartments(next);
     }
 
     // ── Result ───────────────────────────────────────────────────────────────

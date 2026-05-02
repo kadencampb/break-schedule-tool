@@ -10,7 +10,7 @@ export function renderUpload(el, state, callbacks) {
 
     el.innerHTML = `
         <div class="wizard-card">
-            <div class="wizard-card-eyebrow">Step 1 of 6</div>
+            <div class="wizard-card-eyebrow">Step 1 of 2</div>
             <h2 class="wizard-card-title">Drag and drop the daily schedule</h2>
             <p class="wizard-card-subtitle">
                 Drop your <code>Custom Daily Schedule</code> .xlsx file here, or click to browse.

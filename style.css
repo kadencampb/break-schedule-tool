@@ -354,9 +354,6 @@ body {
     margin-bottom: 0.35rem;
 }
 
-.wizard-dept-group-master {
-    flex-shrink: 0;
-}
 
 .wizard-dept-group-name {
     flex: 1;
@@ -405,9 +402,6 @@ body {
     order: -1;
 }
 
-.wizard-dept-group-box.is-checked .wizard-dept-item-grouped {
-    background: rgba(255, 255, 255, 0.85);
-}
 
 /* Standalone (ungrouped) area */
 .wizard-dept-standalone {
@@ -446,6 +440,7 @@ body {
 .wizard-dept-item:hover .wizard-dept-grip {
     opacity: 1;
 }
+
 
 /* ── Review summary divider ────────────────────────────────────────────── */
 
@@ -1313,8 +1308,13 @@ body {
     border-left: 3px solid var(--preview-group-color);
 }
 
+/* Non-staggered depts are slightly dimmed; breaks-off depts are very dimmed. */
 .wizard-preview-dept:not(.is-selected) {
-    opacity: 0.55;
+    opacity: 0.65;
+}
+
+.wizard-preview-dept.is-breaks-off {
+    opacity: 0.35;
 }
 
 .wizard-preview-dept-group {
@@ -1325,38 +1325,26 @@ body {
     font-weight: 700;
     padding: 0.1rem 0.45rem;
     border-radius: 999px;
-    margin-right: 0.4rem;
+    margin-left: 0.4rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-}
-
-/* Per-dept status pill — green when staggered, gray when standard placement. */
-.wizard-preview-dept-status {
-    display: inline-block;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    margin: 0.15rem 0 0.5rem;
-}
-
-.wizard-preview-dept-status[data-state="staggered"] {
-    background: rgba(47, 133, 90, 0.16);
-    color: var(--wiz-green-deep);
-}
-
-.wizard-preview-dept-status[data-state="standard"] {
-    background: rgba(160, 174, 192, 0.22);
-    color: #4a5568;
+    vertical-align: middle;
 }
 
 .wizard-preview-dept-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.wizard-preview-dept-name-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 0;
 }
 
 .wizard-preview-dept-name {
@@ -1365,9 +1353,47 @@ body {
 }
 
 .wizard-preview-dept-count {
-    font-size: 0.8rem;
+    width: 100%;
+    font-size: 0.75rem;
     color: var(--wiz-text-muted);
     font-variant-numeric: tabular-nums;
+    margin-top: 0.1rem;
+}
+
+/* Inline Write Breaks + Stagger controls in each dept card header */
+.wizard-preview-dept-controls {
+    display: flex;
+    gap: 0.85rem;
+    flex-shrink: 0;
+    align-items: flex-start;
+}
+
+.wizard-preview-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.wizard-preview-toggle-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wiz-text-muted);
+    white-space: nowrap;
+}
+
+/* Locked stagger switch for grouped depts */
+.wizard-preview-toggle.is-group-locked .wizard-preview-toggle-label {
+    color: var(--preview-group-color, var(--wiz-green));
+}
+
+.wizard-preview-toggle.is-group-locked input[type="checkbox"] {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .wizard-preview-emp-list {
@@ -1585,6 +1611,356 @@ body {
 }
 
 .wizard-summary-change:hover { background: rgba(47, 133, 90, 0.15); }
+
+/* Make Change / Edit buttons feel more like buttons */
+.wizard-summary-change {
+    border: 1px solid var(--wiz-green);
+    font-size: 0.72rem;
+    gap: 0.3rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* ── Review: More-settings toggle ──────────────────────────────────────── */
+
+.wizard-summary-more-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.45rem 0.5rem;
+    margin-top: 0.5rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--wiz-green);
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: background-color 120ms ease;
+}
+.wizard-summary-more-toggle:hover { background: rgba(47, 133, 90, 0.1); }
+.wizard-summary-more-chevron { transition: transform 200ms ease; }
+.wizard-summary-more-toggle.is-open .wizard-summary-more-chevron { transform: rotate(180deg); }
+
+/* ── Review: right-side department panel ───────────────────────────────── */
+
+.wizard-review-dept-panel {
+    padding: 1rem 1.25rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.wizard-review-dept-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--wiz-border);
+}
+
+.wizard-review-dept-panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wiz-muted);
+}
+
+.wizard-review-dept-panel-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+/* "Customer Facing" column header above standalone dept list */
+.wizard-dept-cf-header {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wiz-muted);
+    flex-shrink: 0;
+}
+
+/* Enable switch positioned between grip and dept name */
+.wizard-dept-enable-switch {
+    flex-shrink: 0;
+    margin-right: 0.1rem;
+}
+
+/* Customer Facing checkbox + label */
+.wizard-dept-cf {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.wizard-dept-cf-check {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--wiz-green);
+    flex-shrink: 0;
+}
+
+.wizard-dept-cf-text {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--wiz-green);
+    white-space: nowrap;
+}
+
+.wizard-dept-cf.is-cf-disabled { pointer-events: none; }
+.wizard-dept-cf.is-cf-disabled .wizard-dept-cf-text { color: var(--wiz-muted); }
+
+/* Greyed-out state when break generation is off.
+   The enable switch itself stays fully opaque — it's the control that turns the row back on. */
+.wizard-dept-item.is-generate-off .wizard-dept-info,
+.wizard-dept-item.is-generate-off .wizard-dept-cf {
+    opacity: 0.4;
+}
+.wizard-dept-item.is-generate-off .wizard-dept-cf {
+    pointer-events: none;
+}
+
+/* ── Workspace — full-bleed canvas with floating panels ─────────────────── */
+
+/* Must use .wizard-root specificity to override the default centering styles. */
+.wizard-root[data-layout="workspace"] {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    overflow: hidden;      /* prevents the whole page from scrolling */
+    height: 100vh;         /* pin to viewport so each zone scrolls independently */
+}
+
+.wizard-root[data-layout="workspace"] .wizard-step {
+    display: flex;
+    flex: 1;
+    max-width: none;      /* cancel the global 720px cap on .wizard-step */
+    min-height: 0;
+    overflow: hidden;
+    position: relative;   /* anchor for absolute panel + progress bar */
+}
+
+/* ── Preview canvas — flex child, fills everything to the right of the nav  */
+
+.wizard-workspace-preview-area {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;   /* anchor for overlay buttons */
+    display: flex;
+    flex-direction: column;
+}
+
+.wizard-workspace-preview-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 3.5rem 2rem 2rem 2rem;
+}
+
+/* ── Left nav rail — real flex child, never overlaps the preview ────────── */
+
+.wizard-workspace-nav {
+    flex-shrink: 0;
+    width: 70px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.6rem 0;
+    gap: 0.15rem;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 2px 0 16px rgba(0,0,0,0.06);
+}
+
+.wizard-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.22rem;
+    padding: 0.55rem 0.3rem;
+    width: 58px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--wiz-muted);
+    font-size: 0.57rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: background-color 120ms ease, color 120ms ease;
+    line-height: 1;
+}
+.wizard-nav-item i { font-size: 1.1rem; }
+.wizard-nav-item:hover { background: rgba(47,133,90,.1); color: var(--wiz-green); }
+.wizard-nav-item.is-active { background: var(--wiz-green); color: #fff; }
+.wizard-nav-item.is-active:hover { background: #276749; }
+
+/* ── Config panel — flex sibling; pushes preview right when open ────────── */
+
+.wizard-workspace-panel {
+    flex-shrink: 0;
+    width: 480px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--wiz-surface);
+    border-right: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.08);
+    animation: ws-panel-in 180ms ease-out;
+}
+.wizard-workspace-panel[hidden] { display: none; }
+
+@keyframes ws-panel-in {
+    from { transform: translateX(-16px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+}
+
+.wizard-panel-head {
+    padding: 1rem 1.15rem 0.7rem;
+    border-bottom: 1px solid rgba(0,0,0,0.07);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--wiz-muted);
+    flex-shrink: 0;
+    background: transparent;
+    position: sticky;
+    top: 0;
+}
+.wizard-panel-body {
+    padding: 1rem 1.15rem;
+    flex: 1;
+    overflow-y: auto;
+}
+.wizard-panel-adv-slot { padding: 0; overflow-y: auto; flex: 1; }
+
+.wizard-panel-file-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(47,133,90,.06);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+.wizard-panel-filename { font-weight: 600; font-size: 0.84rem; word-break: break-all; }
+.wizard-panel-filemeta { font-size: 0.73rem; color: var(--wiz-muted); margin-top: 0.15rem; }
+
+/* ── Overlay action buttons ─────────────────────────────────────────────── */
+
+.wizard-workspace-preview-actions {
+    position: absolute;
+    top: 0.85rem;
+    right: 1.25rem;
+    z-index: 25;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.wizard-ws-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1.2rem;
+    background: var(--wiz-green);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(47,133,90,.4), 0 1px 3px rgba(0,0,0,0.12);
+    transition: background-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+    letter-spacing: 0.01em;
+}
+.wizard-ws-download-btn:hover:not(:disabled) {
+    background: #276749;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(47,133,90,.45), 0 2px 6px rgba(0,0,0,0.12);
+}
+.wizard-ws-download-btn:active:not(:disabled) { transform: translateY(0); }
+.wizard-ws-download-btn:disabled {
+    background: var(--wiz-border);
+    color: var(--wiz-muted);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.wizard-ws-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 0.9rem;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--wiz-muted);
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 9px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+.wizard-ws-new-btn:hover {
+    background: rgba(255,255,255,0.98);
+    border-color: var(--wiz-muted);
+    color: var(--wiz-text);
+}
+
+/* ── Empty / loading states ─────────────────────────────────────────────── */
+
+.wizard-ws-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--wiz-muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* ── Full-width progress bar ────────────────────────────────────────────── */
+
+.wizard-workspace-runbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--wiz-green);
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+}
+.wizard-step-workspace.is-running .wizard-workspace-runbar {
+    animation: ws-runbar 0.55s ease-out forwards;
+}
+@keyframes ws-runbar {
+    0%   { transform: scaleX(0); opacity: 1; }
+    80%  { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0; }
+}
 
 /* ── UKG mock (export-help tutorial) ───────────────────────────────────── */
 

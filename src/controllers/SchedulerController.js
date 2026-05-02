@@ -42,7 +42,7 @@ export class SchedulerController {
 
         try {
             const buffer = await file.arrayBuffer();
-            const { rowData, isValid, error } = this._excel.parseWorkbook(buffer);
+            const { rowData, isValid, error } = await this._excel.parseWorkbook(buffer);
 
             if (!isValid) {
                 this._fileView.showToast(error, 'error');
@@ -63,9 +63,9 @@ export class SchedulerController {
             }
 
             if (dailySchedules.length > 1) {
-                this._processMultiDay(dailySchedules);
+                await this._processMultiDay(dailySchedules);
             } else {
-                this._processSingleDay(dailySchedules[0]);
+                await this._processSingleDay(dailySchedules[0]);
             }
         } catch (e) {
             this._fileView.showToast(`An unexpected error occurred: ${e.message}`, 'error');
@@ -75,18 +75,18 @@ export class SchedulerController {
     }
 
     /** @private */
-    _processSingleDay(schedule) {
+    async _processSingleDay(schedule) {
         const wb = this._excel.createWorkbook();
         const ws = this._excel.createSheet(schedule.rows);
 
         this._applyScheduleToSheet(ws, schedule);
 
         this._excel.appendSheet(wb, ws, 'Schedule');
-        this._excel.download(wb, `Break Schedule ${schedule.date}.xlsx`);
+        await this._excel.download(wb, `Break Schedule ${schedule.date}.xlsx`);
     }
 
     /** @private */
-    _processMultiDay(dailySchedules) {
+    async _processMultiDay(dailySchedules) {
         const wb = this._excel.createWorkbook();
         let combinedRows = [];
         const pageBreaks = [];
@@ -106,7 +106,7 @@ export class SchedulerController {
         this._excel.applyMultiDayStyling(ws, combinedRows, dailySchedules);
 
         if (pageBreaks.length) {
-            ws['!rowBreaks'] = pageBreaks.map(r => ({ R: r, man: 1 }));
+            this._excel.setRowBreaks(ws, pageBreaks);
         }
 
         this._excel.appendSheet(wb, ws, 'Schedule');
@@ -117,7 +117,7 @@ export class SchedulerController {
             ? `Break Schedule ${first}.xlsx`
             : `Break Schedule ${first} to ${last}.xlsx`;
 
-        this._excel.download(wb, filename);
+        await this._excel.download(wb, filename);
     }
 
     /** @private */
@@ -131,7 +131,7 @@ export class SchedulerController {
         // Get settings from models
         const groups       = this._groups.getAll();
         const advSettings  = this._settings.getAdvancedSettings();
-        const operatingHours = this._settings.getOperatingHoursForDate(schedule.date);
+        const operatingHours = { startTime: 0, endTime: 1439 };
 
         // Run the scheduler
         const { breaks, segments } = scheduleBreaks(schedule.rows, {

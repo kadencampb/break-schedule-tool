@@ -22,7 +22,7 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
-                    if (id.includes('node_modules/xlsx')) return 'xlsx';
+                    if (id.includes('node_modules/exceljs')) return 'exceljs';
                     if (
                         id.includes('node_modules/bootstrap') ||
                         id.includes('node_modules/jquery') ||
